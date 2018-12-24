@@ -6,17 +6,24 @@
 #include <vector>
 
 class Game {
-    static const int W = 11, H = 10, N = 18;
+    static const int W = 13, H = 12, N = 33;
 
 public:
     using Hint = std::pair<uint16_t, uint16_t>;
     using Mask = uint64_t;
     using MaskArray = std::array<Mask, H * W>;
 
-    Game() {
+    Game(const char* c) {
         for (int r = 0; r < H; ++r) {
             border_[r * W] = 1;
         }
+        randomize();
+        reset_hints();
+        reset_possible();
+        orig_possible_ = possible_;
+    }
+
+    void randomize() {
         for (int i = 0; i < N; ++i) {
             while (1) {
                 int at = random() % (W * H);
@@ -28,9 +35,6 @@ public:
                 }
             }
         }
-        reset_hints();
-        reset_possible();
-        orig_possible_ = possible_;
     }
 
     void reset_hints() {
@@ -53,6 +57,7 @@ public:
 
         int at = 0;
         for (int r = 0; r < H; ++r) {
+            printf("\"");
             for (int c = 0; c < W; ++c) {
                 if (!border_[at]) {
                     if (hints.count(at)) {
@@ -65,7 +70,7 @@ public:
                 }
                 ++at;
             }
-            printf("\n");
+            printf("\",\n");
         }
     }
 
@@ -273,9 +278,9 @@ private:
     bool border_[H * W] = { 0 };
 };
 
-int main(void) {
-    srandom(666);
-    for (int j = 0; j < 100; ++j) {
+int main(int argc, char** argv) {
+    srandom(atoi(argv[1]));
+    for (int j = 0; j < 10000; ++j) {
         Game game;
         for (int i = 0; i < 100; ++i) {
             game.reset_possible();
@@ -291,7 +296,7 @@ int main(void) {
         for (int i = 0; i < 100; ++i) {
             game.reset_possible();
             if (!game.reset_fixed()) {
-                if (i >= 10) {
+                if (i >= 12) {
                     printf("rounds: %d\n", i);
                     game.print_puzzle();
                 }
