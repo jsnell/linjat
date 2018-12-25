@@ -1,7 +1,9 @@
 #include <algorithm>
-#include <functional>
+#include <cassert>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
+#include <functional>
 #include <map>
 #include <vector>
 
@@ -13,7 +15,7 @@ public:
     using Mask = uint64_t;
     using MaskArray = std::array<Mask, H * W>;
 
-    Game(const char* c) {
+    Game() {
         for (int r = 0; r < H; ++r) {
             border_[r * W] = 1;
         }
@@ -23,6 +25,10 @@ public:
         orig_possible_ = possible_;
     }
 
+    Mask piece_mask(uint64_t piece) {
+        return UINT64_C(1) << piece;
+    }
+
     void randomize() {
         for (int i = 0; i < N; ++i) {
             while (1) {
@@ -30,7 +36,7 @@ public:
                 int val = 2 + random() % 4;
                 if (!fixed_[at] && !border_[at]) {
                     hints_.emplace_back(at, val);
-                    fixed_[at] = 1 << i;
+                    fixed_[at] = piece_mask(i);
                     break;
                 }
             }
@@ -43,7 +49,7 @@ public:
         }
         for (int i = 0; i < N; ++i) {
             auto& hint = hints_[i];
-            fixed_[hint.first] = 1 << i;
+            fixed_[hint.first] = piece_mask(i);
             valid_orientation_[i] =
                 (1 << (hint.second * 2)) - 1;
         }
@@ -163,11 +169,11 @@ private:
     }
 
     int mask_to_piece(Mask mask) {
-        return __builtin_ctz(mask);
+        return __builtin_ctzl(mask);
     }
 
     void update_possible(int piece) {
-        int mask = 1 << piece;
+        Mask mask = piece_mask(piece);
         int at = hints_[piece].first;
         int size = hints_[piece].second;
         int valid_o = valid_orientation_[piece];
@@ -193,7 +199,7 @@ private:
     }
 
     bool update_fixed(int piece) {
-        int mask = 1 << piece;
+        Mask mask = piece_mask(piece);
         int piece_at = hints_[piece].first;
         int size = hints_[piece].second;
         int valid_o = valid_orientation_[piece];
