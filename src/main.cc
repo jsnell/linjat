@@ -55,8 +55,9 @@ public:
         for (int i = 0; i < N; ++i) {
             auto& hint = hints_[i];
             fixed_[hint.first] = piece_mask(i);
-            valid_orientation_[i] =
-                (1 << (hint.second * 2)) - 1;
+        }
+        for (int i = 0; i < N; ++i) {
+            valid_orientation_[i] = init_valid_orientations(i);
         }
         for (auto& dep : dependent_) {
             dep.reset();
@@ -112,7 +113,17 @@ public:
                                hints_[mask_to_piece(fixed_[at])].second :
                                0);
                     } else {
-                        printf("  .  ");
+                        bool printed = false;
+                        for (int p = 0; p < N; ++p) {
+                            if (hints_[p].first == at) {
+                                printf(" % 3d ",
+                                       valid_orientation_[p]);
+                                // orientation_count(p));
+                                printed = true;
+                            }
+                        }
+                    if (!printed)
+                            printf("  .  ");
                     }
                 }
                 ++at;
@@ -170,6 +181,25 @@ public:
         return false;
     }
 
+    bool impossible() {
+        for (int piece = 0; piece < N; ++piece) {
+            if (!valid_orientation_[piece])
+                return true;
+        }
+
+        return false;
+    }
+
+    bool solved() {
+        for (int piece = 0; piece < N; ++piece) {
+            if (orientation_count(piece) != 1) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     Options opt_;
 
 private:
@@ -187,6 +217,10 @@ private:
 
     int mask_to_piece(Mask mask) {
         return __builtin_ctzl(mask);
+    }
+
+    int orientation_count(int piece) {
+        return __builtin_popcountl(valid_orientation_[piece]);
     }
 
     void update_possible(int piece) {
@@ -276,6 +310,28 @@ private:
         }
     }
 
+    int init_valid_orientations(int piece) {
+        int at = hints_[piece].first;
+        int size = hints_[piece].second;
+        int ret = 0;
+        for (int o = 0; o < size * 2; ++o) {
+            int offset = (size - 1) - (o >> 1);
+            int step = ((o & 1) ? W : 1);
+            bool fit =
+                do_squares(size, at + offset * -step, step,
+                           [&] (int test_at) {
+                               if (test_at != at && fixed_[test_at]) {
+                                   return false;
+                               }
+                               return true;
+                           });
+            if (fit) {
+                ret |= (1 << o);
+            }
+        }
+        return ret;
+    }
+
     bool do_squares(int n, int start, int step,
                     std::function<bool(int)> fun) {
         for (int i = 0; i < n; ++i) {
@@ -294,8 +350,6 @@ private:
 
     void update_dependent() {
         for (int at = 0; at < W * H; ++at) {
-            if (!forced_[at])
-                continue;
             if (fixed_[at])
                 continue;
             if (possible_count(at) <= 1)
@@ -364,7 +418,7 @@ private:
 
 int main(int argc, char** argv) {
     srandom(atoi(argv[1]));
-    for (int j = 0; j < 10000000; ++j) {
+    for (int j = 0; j < 1000000; ++j) {
         Game game;
         for (int i = 0; i < 100; ++i) {
             game.reset_possible();
@@ -375,6 +429,14 @@ int main(int argc, char** argv) {
                     break;
                 }
             }
+        }
+
+        if (game.impossible()) {
+            continue;
+        }
+
+        if (!game.solved()) {
+            continue;
         }
 
         int solve_dep = 0, solve_nodep = 0;
@@ -396,7 +458,7 @@ int main(int argc, char** argv) {
             game.reset_possible();
             if (!game.reset_fixed()) {
                 // if (i >= 12) {
-                //     printf("nodep rounds: %d\n", i);
+                //     printf("nodep rounds: %d [%d]\n", i, solve_dep);
                 //     game.print_puzzle();
                 // }
                 solve_nodep = i;
@@ -407,6 +469,21 @@ int main(int argc, char** argv) {
         if (solve_dep && !solve_nodep) {
             printf("DEP=%d NODEP=%d\n", solve_dep, solve_nodep);
             game.print_puzzle();
+
+            // game.reset_hints();
+            // game.opt_.dep_ = true;
+            // for (int i = 0; i < 100; ++i) {
+            //     game.reset_possible();
+            //     game.print_possible();
+            //     printf("\n-----------------------------------------------\n\n");
+            //     if (!game.reset_fixed()) {
+            //         // if (i >= 12) {
+            //         //     printf("nodep rounds: %d\n", i);
+            //         //     game.print_puzzle();
+            //         // }
+            //         break;
+            //     }
+            // }
         }
     }
 }
