@@ -186,8 +186,10 @@ class Grid {
             var row_array = [];
             grid.push(row_array);
             row.split("").forEach(function (value, ci) {
-                var cell = new Cell(ri, ci, $("<div>"));
+                var elem = $("<div>");
+                var cell = new Cell(ri, ci, elem);
                 cell.value = value;
+                elem.data('cell', cell);
                 if (value > 0 && value <= 9) {
                     lines.push(new Line(value, ri, ci));
                 }
@@ -217,49 +219,60 @@ class Grid {
         return ret;
     }
 
+    startDrag(r, c) {
+        var line = this.findLineAt(r, c);
+        if (line) {
+            this.dragLine = line;
+            this.dragStart = [r, c];
+        }
+    }
+
+    previewDrag(r, c) {
+        if (!this.dragLine)
+            return;
+        if (!this.dragLine.updateLine(this.dragStart[0],
+                                      this.dragStart[1],
+                                      r,
+                                      c)) {
+            this.dragLine.setStyle();
+        }
+    }
+
+    stopDrag(r, c) {
+        if (!this.dragLine)
+            return;
+        
+        if (this.dragLine.updateLine(this.dragStart[0],
+                                     this.dragStart[1],
+                                     r,
+                                     c)) {
+            this.dragLine.finishUpdate(this.dragStart[0],
+                                       this.dragStart[1],
+                                       r,
+                                       c);
+        }
+
+        this.dragLine.setStyle();
+        this.dragLine = null;
+    }
+
     makeStartDrag(r, c) {
-        var grid = this;
         return function(event) {
-            var line = grid.findLineAt(r, c);
-            if (line) {
-                grid.dragLine = line;
-                grid.dragStart = [r, c];
-            }
+            startDrag(r, c);
             return false;
         };
     }
 
     makePreviewDrag(r, c) {
-        var grid = this;
         return function() {
-            if (grid.dragLine) {
-                if (!grid.dragLine.updateLine(grid.dragStart[0],
-                                              grid.dragStart[1],
-                                              r,
-                                              c)) {
-                    grid.dragLine.setStyle();
-                }
-                return false;
-            }
+            previewDrag(r, c);
+            return false;
         };
     }
 
     makeStopDrag(r, c) {
-        var grid = this;
         return function() {
-            if (grid.dragLine) {
-                if (grid.dragLine.updateLine(grid.dragStart[0],
-                                             grid.dragStart[1],
-                                             r,
-                                             c)) {
-                    grid.dragLine.finishUpdate(grid.dragStart[0],
-                                               grid.dragStart[1],
-                                               r,
-                                               c);
-                }
-                grid.dragLine.setStyle();
-                grid.dragLine = null;
-            }
+            stopDrag(r, c);
             return false;
         };
     }
@@ -274,6 +287,42 @@ class Grid {
         }
     }
 
+    rowColumnFromTouchEventWrapper(fun) {
+        var grid = this;
+        return function(event) {
+            var touch = event.changedTouches[0];
+            var elem = $(document.elementFromPoint(touch.pageX,
+                                                   touch.pageY));
+            var cell = elem.data('cell');
+            if (!cell) {
+                return false;
+            }
+
+            return fun(cell.r, cell.c);
+        };
+    }
+
+    makeStartDragTouch() {
+        var grid = this;
+        return this.rowColumnFromTouchEventWrapper(function(r, c) {
+            grid.startDrag(r, c)
+        });
+    }
+
+    makePreviewDragTouch() {
+        var grid = this;
+        return this.rowColumnFromTouchEventWrapper(function(r, c) {
+            grid.previewDrag(r, c)
+        });
+    }
+
+    makeStopDragTouch() {
+        var grid = this;
+        return this.rowColumnFromTouchEventWrapper(function(r, c) {
+            grid.stopDrag(r, c)
+        });
+    }
+    
     updateLine(from, to) {
         if (from[0] == to[0] && from[1] == to[1]) {
             var cell = this.at(from[0], from[1]);
@@ -366,7 +415,13 @@ function init() {
         cell.elem.mouseup(grid.makeStopDrag(r, c));
         cell.elem.mousemove(grid.makePreviewDrag(r, c));
     });
-    board.mouseleave(grid.makeCancelDrag(board));
+    board.mouseleave(grid.makeCancelDrag());
+
+    board.on('touchstart', grid.makeStartDragTouch());
+    board.on('touchend', grid.makeStopDragTouch());
+    board.on('touchmove', grid.makePreviewDragTouch());
+    board.on('touchleave', grid.makeCancelDrag());
+    board.on('touchcancel', grid.makeCancelDrag());
 
     board.css("width", cellSize * size + 3);
     board.css("height", cellSize * size + 3);
