@@ -19,6 +19,7 @@ public:
 
     struct Options {
         bool dep_ = true;
+        bool dep_non_forced_ = true;
     };
 
     Game() : Game(Options()) {
@@ -367,10 +368,15 @@ private:
                 for (int target = 0; target < N; ++target) {
                     if (dep[target] &&
                         target != at &&
-                        forced_[at] &&
                         possible_[at] != possible_[target]) {
-                        possible_[at] = possible_[target] =
-                            (possible_[at] & possible_[target]);
+                        if (opt_.dep_non_forced_) {
+                            possible_[target] &= possible_[at];
+                        } else {
+                            if (forced_[target]) {
+                                possible_[target] = possible_[at] =
+                                    (possible_[target] & possible_[at]);
+                            }
+                        }
                     }
                 }
             }
@@ -450,7 +456,7 @@ int main(int argc, char** argv) {
             continue;
         }
 
-        int solve_dep = 0, solve_nodep = 0;
+        int solve_dep = 0, solve_dep_forced = 0, solve_nodep = 0;
         game.reset_hints();
         for (int i = 0; i < 100; ++i) {
             game.reset_possible();
@@ -461,6 +467,21 @@ int main(int argc, char** argv) {
                 // }
                 if (game.solved())
                     solve_dep = i;
+                break;
+            }
+        }
+
+        game.reset_hints();
+        game.opt_.dep_non_forced_ = false;
+        for (int i = 0; i < 100; ++i) {
+            game.reset_possible();
+            if (!game.reset_fixed()) {
+                // if (i >= 12) {
+                //     printf("dep rounds: %d\n", i);
+                //     game.print_puzzle();
+                // }
+                if (game.solved())
+                    solve_dep_forced = i;
                 break;
             }
         }
@@ -480,8 +501,11 @@ int main(int argc, char** argv) {
             }
         }
 
-        if (solve_dep != solve_nodep) {
-            printf("DEP=%d NODEP=%d\n", solve_dep, solve_nodep);
+        if (solve_dep && !solve_nodep) {
+            printf("DEP=%d DEP_FORCED=%d NODEP=%d\n",
+                   solve_dep,
+                   solve_dep_forced,
+                   solve_nodep);
             game.print_puzzle();
 
             // game.reset_hints();
