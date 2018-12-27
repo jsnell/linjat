@@ -9,7 +9,7 @@
 #include <vector>
 
 class Game {
-    static const int W = 13, H = 12, N = 33;
+    static const int W = 13, H = 12, N = 28;
 
 public:
     using Hint = std::pair<uint16_t, uint16_t>;
@@ -350,6 +350,8 @@ private:
 
     void update_dependent() {
         for (int at = 0; at < W * H; ++at) {
+            if (!forced_[at])
+                continue;
             if (fixed_[at])
                 continue;
             if (possible_count(at) <= 1)
@@ -365,6 +367,7 @@ private:
                 for (int target = 0; target < N; ++target) {
                     if (dep[target] &&
                         target != at &&
+                        forced_[at] &&
                         possible_[at] != possible_[target]) {
                         possible_[at] = possible_[target] =
                             (possible_[at] & possible_[target]);
@@ -379,7 +382,9 @@ private:
         int at = hints_[piece].first;
         int size = hints_[piece].second;
         int valid_o = valid_orientation_[piece];
+        bool ret_valid;
         DepMask ret;
+        ret.set();
 
         for (int o = 0; o < size * 2; ++o) {
             if (valid_o & (1 << o)) {
@@ -393,15 +398,21 @@ private:
                                          return (!fixed_[at] ||
                                                  fixed_[at] == mask);
                                      });
+                DepMask mask;
                 if (ok && overlaps_target) {
                     do_squares(size, at + offset * -step, step,
                                [&] (int at) {
-                                   ret[at] = true;
+                                   mask[at] = true;
                                    return true;
                                });
+                    ret &= mask;
+                    ret_valid = true;
                 }
             }
         }
+
+        if (!ret_valid)
+            ret.reset();
 
         return ret;
     }
@@ -448,10 +459,12 @@ int main(int argc, char** argv) {
                 //     printf("dep rounds: %d\n", i);
                 //     game.print_puzzle();
                 // }
-                solve_dep = i;
+                if (game.solved())
+                    solve_dep = i;
                 break;
             }
         }
+
         game.reset_hints();
         game.opt_.dep_ = false;
         for (int i = 0; i < 100; ++i) {
@@ -461,12 +474,13 @@ int main(int argc, char** argv) {
                 //     printf("nodep rounds: %d [%d]\n", i, solve_dep);
                 //     game.print_puzzle();
                 // }
-                solve_nodep = i;
+                if (game.solved())
+                    solve_nodep = i;
                 break;
             }
         }
 
-        if (solve_dep && !solve_nodep) {
+        if (solve_dep != solve_nodep) {
             printf("DEP=%d NODEP=%d\n", solve_dep, solve_nodep);
             game.print_puzzle();
 
