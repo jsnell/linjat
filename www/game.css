@@ -8,11 +8,6 @@ body {
     overflow: hidden;
 }
 
-div#main-container {
-    transform: scale(3);
-    transform-origin: 0 0;
-}
-
 div.playgrid {
     position: relative;
     border-spacing: 0px;

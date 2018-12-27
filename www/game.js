@@ -387,5 +387,10 @@ function init() {
     grid.updateStyles();
 
     $("body").mousedown(function() { return false });
+
+    var scale = Math.min(($(window).innerHeight() - 64) / board.height(),
+                          ($(window).innerWidth() - 64) / board.width());
+    board.css("transform", "scale(" + scale + ")");
+    board.css("transform-origin", "0 0");
 }
 
