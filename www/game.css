@@ -86,6 +86,12 @@ div.playgrid div.bottom-set {
     border: solid 1px #080;
 }
 
+#board div.line-toolong {
+    background-color: #e00;
+    box-shadow: 1.5px 1.5px 0px 0px #600;
+    border: solid 1px #800;
+}
+
 #board div.blocked {
     background-color: #f00;
 }

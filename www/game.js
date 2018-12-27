@@ -56,6 +56,7 @@ class Line {
         this.length = Math.max(width, height);
 
         this.updateAttr(this.length == this.targetLength, "line-match");
+        this.updateAttr(this.length > this.targetLength, "line-toolong");
     }
 
     findEffectiveHandles(fromR, fromC, r, c) {
@@ -257,22 +258,25 @@ class Grid {
     }
 
     makeStartDrag(r, c) {
+        var grid = this;
         return function(event) {
-            startDrag(r, c);
+            grid.startDrag(r, c);
             return false;
         };
     }
 
     makePreviewDrag(r, c) {
+        var grid = this;
         return function() {
-            previewDrag(r, c);
+            grid.previewDrag(r, c);
             return false;
         };
     }
 
     makeStopDrag(r, c) {
+        var grid = this;
         return function() {
-            stopDrag(r, c);
+            grid.stopDrag(r, c);
             return false;
         };
     }
