@@ -13,21 +13,12 @@ class Line {
         this.h2 = [r, c];
 
         this.elem = $("<div>");
-        this.elem.css("top", r * cellSize + 2)
-        this.elem.css("left", c * cellSize + 2)
-        this.elem.css("width", cellSize - 4)
-        this.elem.css("height", cellSize - 4)
-        this.elem.addClass('set');
+        this.elem.addClass("line");
 
         this.setStyle();
     }
 
     setStyle() {
-        if (this.length == this.targetLength) {
-            this.elem.css("background-color", "#0f0");
-        } else {
-            this.elem.css("background-color", "#ff0");
-        }
         this.setLineStyle(this.h1, this.h2);
     }
 
@@ -64,11 +55,7 @@ class Line {
 
         this.length = Math.max(width, height);
 
-        if (this.length == this.targetLength) {
-            this.elem.css("background-color", "#0f0");
-        } else {
-            this.elem.css("background-color", "#ff0");
-        }
+        this.updateAttr(this.length == this.targetLength, "line-match");
     }
 
     findEffectiveHandles(fromR, fromC, r, c) {

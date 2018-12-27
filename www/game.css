@@ -13,6 +13,7 @@ div.playgrid {
     border-spacing: 0px;
     border-width: 2px;
     border-style: transparent;
+    /* background-color: 000; */
     /* left:0; */
     /* top:0; */
 }
@@ -43,7 +44,7 @@ div.playgrid div {
     vertical-align: top;
     text-align: center;
     font-family: 'coiny';
-    font-size: 18px;
+    font-size: 19px;
     margin: 0px;
 }
 
@@ -71,12 +72,18 @@ div.playgrid div.bottom-set {
     margin-bottom: 0px;
 }
 
-#board div.set {
-    background-color: #aef;
+#board div.line {
+    background-color: #ee0;
     box-shadow: 1.5px 1.5px 0px 0px #660;
     z-index: -1;
     border-radius: 25px;
     border: solid 1px #880;
+}
+
+#board div.line-match {
+    background-color: #0e0;
+    box-shadow: 1.5px 1.5px 0px 0px #060;
+    border: solid 1px #080;
 }
 
 #board div.blocked {
