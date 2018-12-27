@@ -1,31 +1,164 @@
 "use strict";
 
+var cellSize = 25;
+
 class Line {
-    constructor(cell) {
-        this.owner = cell;
-        this.targetLength = cell.value;
+    constructor(targetLength, r, c) {
+        this.targetLength = targetLength;
         this.length = 1;
+
+        this.r = r;
+        this.c = c;
+        this.h1 = [r, c];
+        this.h2 = [r, c];
+
+        this.elem = $("<div>");
+        this.elem.css("top", r * cellSize + 2)
+        this.elem.css("left", c * cellSize + 2)
+        this.elem.css("width", cellSize - 4)
+        this.elem.css("height", cellSize - 4)
+        this.elem.addClass('set');
+
+        this.setStyle();
+    }
+
+    setStyle() {
+        if (this.length == this.targetLength) {
+            this.elem.css("background-color", "#0f0");
+        } else {
+            this.elem.css("background-color", "#ff0");
+        }
+        this.setLineStyle(this.h1, this.h2);
+    }
+
+    updateAttr(set, klass) {
+        if (set) {
+            this.elem.addClass(klass);
+        } else {
+            this.elem.removeClass(klass);
+        }
+    }
+
+    findHandles(r, c) {
+        var h1 = this.h1;
+        var h2 = this.h2;
+        if (r == h1[0] && c == h1[1]) {
+            return [h1, h2];
+        }
+        if (r == h2[0] && c == h2[1]) {
+            return [h2, h1];
+        }
+    }
+
+    setLineStyle(h1, h2) {
+        if (h1[0] > h2[0] || h1[1] > h2[1]) {
+            return this.setLineStyle(h2, h1);
+        }
+        this.elem.css("top", h1[0] * cellSize + 2);
+        this.elem.css("left", h1[1] * cellSize + 2);        
+
+        var height = (1 + Math.abs(h1[0] - h2[0]));
+        var width = (1 + Math.abs(h1[1] - h2[1]));
+        this.elem.css("height", cellSize * height - 4);
+        this.elem.css("width", cellSize * width - 4);
+
+        this.length = Math.max(width, height);
+
+        if (this.length == this.targetLength) {
+            this.elem.css("background-color", "#0f0");
+        } else {
+            this.elem.css("background-color", "#ff0");
+        }
+    }
+
+    findEffectiveHandles(fromR, fromC, r, c) {
+        // TODO: Forbid intersecting lines
+        var handles = this.findHandles(fromR, fromC);
+        if (!handles) {
+            if (fromR != r && fromC != c) {
+                return null;
+            }
+            if (fromR == this.r && fromC == this.c) {
+                return [[r, c], [fromR, fromC]];
+            }
+            console.log("should not happen");
+            return null;
+        }
+        if (r != this.r && c != this.c) {
+            return null;
+        }
+        var handle = handles[0];
+        var other = handles[1];
+        if ((r != other[0]) && (c != other[1])) {
+            return [[r, c], [this.r, this.c]];
+        } else if ((r < this.r && other[0] < this.r) ||
+                   (r > this.r && other[0] > this.r) ||
+                   (c < this.c && other[1] < this.c) ||
+                   (c > this.c && other[1] > this.c)) {
+            return [[this.r, this.c], other];
+        } else {
+            return [[r, c], other];
+        }
+        return true;
+    }
+
+    updateLine(fromR, fromC, r, c) {
+        if (fromR == r && fromR == this.r &&
+            fromC == c && fromC == this.c) {
+            return true;
+        }
+        var handles = this.findEffectiveHandles(fromR, fromC, r, c);
+        if (handles == null) {
+            return false;
+        }
+        this.setLineStyle(handles[0], handles[1]);
+        return true;
+    }
+
+    finishUpdate(fromR, fromC, r, c) {
+        if (fromR == r && fromR == this.r &&
+            fromC == c && fromC == this.c) {
+            this.h1 = [r, c];
+            this.h2 = [r, c];
+            return;
+        }
+        var handles = this.findEffectiveHandles(fromR, fromC, r, c);
+        if (handles == null) {
+            return;
+        }
+        this.h1 = handles[0];
+        this.h2 = handles[1];
     }
 }
 
 class Cell {
+    constructor(r, c, elem) {
+        this.r = r;
+        this.c = c;
+        this.elem = elem;
+
+        elem.css("top", r * cellSize);
+        elem.css("left", c * cellSize);
+    }
+
     setStyle() {
-        var line = this.line;
-        if (this.previewLine) {
-            line = this.previewLine;
-        }
-        this.update(line);
-        if (line) {
-            if (line.length == line.targetLength) {
-                this.elem.css("background-color", "#0f0");
-            } else {
-                this.elem.css("background-color", "#ff0");
-            }
-        } else if (this.value == '.') {
-            this.elem.css("background-color", "red");
-        } else {
-            this.elem.css("background-color", "");
-        }
+        // var line = this.line;
+        // if (this.previewLine) {
+        //     line = this.previewLine;
+        // }
+        // this.update(line);
+        // if (line) {
+        //     if (line.length == line.targetLength) {
+        //         this.elem.css("background-color", "#0f0");
+        //     } else {
+        //         this.elem.css("background-color", "#ff0");
+        //     }
+        // } else if (this.value == '.') {
+        //     this.elem.css("background-color", "red");
+        // } else {
+        //     this.elem.css("background-color", "");
+        // }
+        // this.updateAttr(line, 'set');
     }
 
     update(line) {
@@ -61,19 +194,21 @@ class Cell {
 class Grid {
     load(rows) {
         var grid = [];
-        rows.forEach(function (row) {
+        var lines = [];
+        rows.forEach(function (row, ri) {
             var row_array = [];
             grid.push(row_array);
-            row.split("").forEach(function (value) {
-                var cell = new Cell();
+            row.split("").forEach(function (value, ci) {
+                var cell = new Cell(ri, ci, $("<div>"));
                 cell.value = value;
                 if (value > 0 && value <= 9) {
-                    cell.line = new Line(cell);
+                    lines.push(new Line(value, ri, ci));
                 }
                 row_array.push(cell);
             });
         });
         this.grid = grid;
+        this.lines = lines;
         return grid.length;
     }
 
@@ -81,37 +216,27 @@ class Grid {
         return this.grid[r][c];
     }
 
-    makeStartDrag(r, c) {
-        var grid = this;
-        return function() {
-            var line = grid.at(r, c).line;
-            if (line) {
-                grid.previewLine = new Line(line.owner);
-                grid.drag = [r, c];
-                grid.eachCell(function(cell) {
-                    if (cell.line == line) {
-                        cell.previewLine = grid.previewLine;
-                        grid.previewLine.length += 1;
-                    } else {
-                        cell.previewLine = null;
-                    }
-                });
-                grid.at(r, c).previewLine.length -= 1;
+    findLineAt(r, c) {
+        var ret = null;
+        this.eachLine(function(line) {
+            if (line.r == r && line.c == c) {
+                ret = line;
+            } else if (line.h1[0] == r && line.h1[1] == c) {
+                ret = line;
+            } else if (line.h2[0] == r && line.h2[1] == c) {
+                ret = line;
             }
-            return false;
-        };
+        });
+        return ret;
     }
 
-    makeStopDrag(r, c) {
+    makeStartDrag(r, c) {
         var grid = this;
-        return function() {
-            if (grid.previewLine) {
-                grid.eachCell(function(cell) {
-                    cell.previewLine = null;
-                });
-                grid.previewLine = null;
-                grid.updateLine(grid.drag, [r, c]);
-                grid.updateStyles();
+        return function(event) {
+            var line = grid.findLineAt(r, c);
+            if (line) {
+                grid.dragLine = line;
+                grid.dragStart = [r, c];
             }
             return false;
         };
@@ -120,26 +245,44 @@ class Grid {
     makePreviewDrag(r, c) {
         var grid = this;
         return function() {
-            if (grid.previewLine) {
-                if (grid.at(r, c).previewLine != grid.previewLine) {
-                    grid.at(r, c).previewLine = grid.previewLine;
-                    grid.previewLine.length += 1;
-                    grid.updateStyles();
+            if (grid.dragLine) {
+                if (!grid.dragLine.updateLine(grid.dragStart[0],
+                                              grid.dragStart[1],
+                                              r,
+                                              c)) {
+                    grid.dragLine.setStyle();
                 }
                 return false;
             }
         };
     }
 
+    makeStopDrag(r, c) {
+        var grid = this;
+        return function() {
+            if (grid.dragLine) {
+                if (grid.dragLine.updateLine(grid.dragStart[0],
+                                             grid.dragStart[1],
+                                             r,
+                                             c)) {
+                    grid.dragLine.finishUpdate(grid.dragStart[0],
+                                               grid.dragStart[1],
+                                               r,
+                                               c);
+                }
+                grid.dragLine.setStyle();
+                grid.dragLine = null;
+            }
+            return false;
+        };
+    }
+
     makeCancelDrag() {
         var grid = this;
         return function() {
-            if (grid.previewLine) {
-                grid.eachCell(function(cell) {
-                    cell.previewLine = null;
-                });
-                grid.previewLine = null;
-                grid.updateStyles();
+            if (grid.dragLine) {
+                grid.dragLine.setStyle();
+                grid.dragLine = null;
             }
         }
     }
@@ -193,6 +336,12 @@ class Grid {
         });
     }
 
+    eachLine(fun) {
+        this.lines.forEach(function(line) {
+            fun(line);
+        });
+    }
+
     updateStyles() {
         this.eachCell(function(cell) {
             cell.setStyle();
@@ -203,43 +352,37 @@ class Grid {
 function init() {
     var grid = new Grid();
     var size = grid.load([
-" 2 4  2.2   ",
-"  2  2. .3 .",
-"   4.2 . 3 5",
-"4 4..4 ..5. ",
-"   .  2     ",
-"3  4        ",
-"    4.. 4.4.",
-"2           ",
-".   . 35  23",
-"    .  4. . ",
-"        2.2.",
-"242.      .3",
+"3  2. 5  .  ",
+"2  .22   4 .",
+" 43.. 4  .44",
+"  . 4 ..    ",
+"  3  23 ..3.",
+". 4 . .2  . ",
+"2     .3.3. ",
+". .3  2     ",
+"  3.  . ..5 ",
+"4 .3 .  2   ",
+"            ",
+".  4.3 3.2. ",
     ]);
     var board = $("#board");
-    for (var r = 0; r < size; ++r) {
-        var tr = $("<tr>");
-        for (var c = 0; c < size; ++c) {
-            var td = $("<td>");
-            td.text(grid.at(r, c).value);
-            td.mousedown(grid.makeStartDrag(r, c));
-            td.mousemove(grid.makePreviewDrag(r, c));
-            td.mouseup(grid.makeStopDrag(r, c));
-            tr.append(td);
-            grid.at(r, c).elem = td;
-        }
-        board.append(tr);
-    }
-    for (var r = 0; r < size; ++r) {
-        for (var c = 0; c < size; ++c) {
-            var up = (r == 0 ? null : grid.at(r-1, c));
-            var down = (r == size - 1 ? null : grid.at(r+1, c));
-            var left = (c == 0 ? null : grid.at(r, c-1));
-            var right = (c == size - 1 ? null : grid.at(r ,c+1));
-            grid.at(r, c).setNeighbors(up, down, left, right);
-        }
-    }
-    board.mouseleave(grid.makeCancelDrag());
+    board.css("width", cellSize * size);
+    grid.eachLine(function (line) {
+        board.append(line.elem);
+    });
+    grid.eachCell(function (cell) {
+        board.append(cell.elem);
+        cell.elem.text(cell.value);
+        var r = cell.r;
+        var c = cell.c;
+        cell.elem.mousedown(grid.makeStartDrag(r, c));
+        cell.elem.mouseup(grid.makeStopDrag(r, c));
+        cell.elem.mousemove(grid.makePreviewDrag(r, c));
+    });
+    board.mouseleave(grid.makeCancelDrag(board));
+
+    board.css("width", cellSize * size + 3);
+    board.css("height", cellSize * size + 3);
 
     grid.updateStyles();
 
