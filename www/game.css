@@ -6,6 +6,7 @@
 body {
     height: 100%;
     overflow: hidden;
+    touch-action: none;
 }
 
 div.playgrid {
@@ -29,10 +30,11 @@ div.ui-container {
     border-style: solid;
 }
 
-div.playgrid div:hover {
-    background-color: #888;
-    opacity: 0.5;
-/*    border-radius: 25px; */
+@media not all and (hover: none) {
+    div.playgrid div:hover {
+        background-color: #888;
+        opacity: 0.5;
+    }
 }
 
 div.playgrid div {
