@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <bitset>
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
@@ -14,8 +15,16 @@ public:
     using Hint = std::pair<uint16_t, uint16_t>;
     using Mask = uint64_t;
     using MaskArray = std::array<Mask, H * W>;
+    using DepMask = std::bitset<H * W>;
 
-    Game() {
+    struct Options {
+        bool dep_ = true;
+    };
+
+    Game() : Game(Options()) {
+    }
+
+    Game(Options opt) : opt_(opt) {
         for (int r = 0; r < H; ++r) {
             border_[r * W] = 1;
         }
@@ -23,10 +32,6 @@ public:
         reset_hints();
         reset_possible();
         orig_possible_ = possible_;
-    }
-
-    Mask piece_mask(uint64_t piece) {
-        return UINT64_C(1) << piece;
     }
 
     void randomize() {
@@ -52,6 +57,9 @@ public:
             fixed_[hint.first] = piece_mask(i);
             valid_orientation_[i] =
                 (1 << (hint.second * 2)) - 1;
+        }
+        for (auto& dep : dependent_) {
+            dep.reset();
         }
     }
 
@@ -120,6 +128,9 @@ public:
         for (int piece = 0; piece < N; ++piece) {
             update_possible(piece);
         }
+        if (opt_.dep_) {
+            update_dependent();
+        }
     }
 
     bool reset_fixed() {
@@ -159,6 +170,8 @@ public:
         return false;
     }
 
+    Options opt_;
+
 private:
     int orig_possible_count(int at) {
         return __builtin_popcountl(orig_possible_[at]);
@@ -166,6 +179,10 @@ private:
 
     int possible_count(int at) {
         return __builtin_popcountl(possible_[at]);
+    }
+
+    Mask piece_mask(uint64_t piece) {
+        return UINT64_C(1) << piece;
     }
 
     int mask_to_piece(Mask mask) {
@@ -275,18 +292,79 @@ private:
         return true;
     }
 
+    void update_dependent() {
+        for (int at = 0; at < W * H; ++at) {
+            if (!forced_[at])
+                continue;
+            if (fixed_[at])
+                continue;
+            if (possible_count(at) <= 1)
+                continue;
+            DepMask dep;
+            dep.set();
+            for (int piece = 0; piece < N; ++piece) {
+                if (!(piece_mask(piece) & possible_[at]))
+                    continue;
+                dep &= find_dependent(piece, at);
+            }
+            if (dep.count() > 1) {
+                for (int target = 0; target < N; ++target) {
+                    if (dep[target] &&
+                        target != at &&
+                        possible_[at] != possible_[target]) {
+                        possible_[at] = possible_[target] =
+                            (possible_[at] & possible_[target]);
+                    }
+                }
+            }
+        }
+    }
+
+    DepMask find_dependent(int piece, int target) {
+        Mask mask = piece_mask(piece);
+        int at = hints_[piece].first;
+        int size = hints_[piece].second;
+        int valid_o = valid_orientation_[piece];
+        DepMask ret;
+
+        for (int o = 0; o < size * 2; ++o) {
+            if (valid_o & (1 << o)) {
+                int offset = (size - 1) - (o >> 1);
+                int step = ((o & 1) ? W : 1);
+                bool overlaps_target = false;
+                bool ok = do_squares(size, at + offset * -step, step,
+                                     [&] (int at) {
+                                         if (at == target)
+                                             overlaps_target = true;
+                                         return (!fixed_[at] ||
+                                                 fixed_[at] == mask);
+                                     });
+                if (ok && overlaps_target) {
+                    do_squares(size, at + offset * -step, step,
+                               [&] (int at) {
+                                   ret[at] = true;
+                                   return true;
+                               });
+                }
+            }
+        }
+
+        return ret;
+    }
+
     std::vector<Hint> hints_;
     uint16_t valid_orientation_[N] { 0 };
     MaskArray orig_possible_;
     MaskArray possible_ = { 0 };
     MaskArray fixed_ = { 0 };
+    std::array<DepMask, H * W> dependent_;
     bool forced_[H * W] = { 0 };
     bool border_[H * W] = { 0 };
 };
 
 int main(int argc, char** argv) {
     srandom(atoi(argv[1]));
-    for (int j = 0; j < 10000; ++j) {
+    for (int j = 0; j < 10000000; ++j) {
         Game game;
         for (int i = 0; i < 100; ++i) {
             game.reset_possible();
@@ -298,16 +376,37 @@ int main(int argc, char** argv) {
                 }
             }
         }
+
+        int solve_dep = 0, solve_nodep = 0;
         game.reset_hints();
         for (int i = 0; i < 100; ++i) {
             game.reset_possible();
             if (!game.reset_fixed()) {
-                if (i >= 12) {
-                    printf("rounds: %d\n", i);
-                    game.print_puzzle();
-                }
+                // if (i >= 12) {
+                //     printf("dep rounds: %d\n", i);
+                //     game.print_puzzle();
+                // }
+                solve_dep = i;
                 break;
             }
+        }
+        game.reset_hints();
+        game.opt_.dep_ = false;
+        for (int i = 0; i < 100; ++i) {
+            game.reset_possible();
+            if (!game.reset_fixed()) {
+                // if (i >= 12) {
+                //     printf("nodep rounds: %d\n", i);
+                //     game.print_puzzle();
+                // }
+                solve_nodep = i;
+                break;
+            }
+        }
+
+        if (solve_dep && !solve_nodep) {
+            printf("DEP=%d NODEP=%d\n", solve_dep, solve_nodep);
+            game.print_puzzle();
         }
     }
 }

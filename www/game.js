@@ -339,18 +339,18 @@ class Grid {
 function init() {
     var grid = new Grid();
     var size = grid.load([
-"3  2. 5  .  ",
-"2  .22   4 .",
-" 43.. 4  .44",
-"  . 4 ..    ",
-"  3  23 ..3.",
-". 4 . .2  . ",
-"2     .3.3. ",
-". .3  2     ",
-"  3.  . ..5 ",
-"4 .3 .  2   ",
-"            ",
-".  4.3 3.2. ",
+"      5   . ",
+"33  25  . 3 ",
+" 2  4 . 5   ",
+". 32    .3. ",
+"   .. 5  .  ",
+" 5 . .2. 3 .",
+"4 ..  .  4. ",
+"  24        ",
+".2..5.  . 3 ",
+"3.  .24 .. 5",
+" 2.  2 322  ",
+"    . .2.   ",
     ]);
     var board = $("#board");
     board.css("width", cellSize * size);
@@ -376,7 +376,7 @@ function init() {
     $("body").mousedown(function() { return false });
 
     var scale = Math.min(($(window).innerHeight() - 64) / board.height(),
-                          ($(window).innerWidth() - 64) / board.width());
+                         ($(window).innerWidth() - 64) / board.width());
     board.css("transform", "scale(" + scale + ")");
     board.css("transform-origin", "0 0");
 }
