@@ -14,15 +14,11 @@ div.playgrid {
     border-spacing: 0px;
     border-width: 2px;
     border-style: transparent;
-    /* background-color: 000; */
-    /* left:0; */
-    /* top:0; */
+    margin-bottom: 10px;
 }
 
-div.ui-container {
+div#main-container {
     position: absolute;
-    top: 260;
-    left: 0;
 }
 
 #board {
@@ -34,6 +30,27 @@ div.ui-container {
     div.playgrid div:hover {
         background-color: #888;
         opacity: 0.5;
+    }
+}
+
+div.button {
+    height: 30px;
+    display: inline-block;
+    text-align: center;
+    vertical-align: middle;
+    padding: 5px;
+    font-size: 25px;
+    border-radius: 12px;
+    background-color: #0dd;
+    border: solid 1px #044; 
+    box-shadow: 2px 2px 0px 0px #066; 
+    font-family: 'coiny';
+    margin-right: 10px;
+}
+
+@media not all and (hover: none) {
+    div.button:hover {
+        background-color: #0ff;
     }
 }
 

@@ -117,6 +117,12 @@ class Line {
         this.h1 = handles[0];
         this.h2 = handles[1];
     }
+
+    reset() {
+        this.h1 = [this.r, this.c];
+        this.h2 = [this.r, this.c];
+        this.setStyle();
+    }
 }
 
 class Cell {
@@ -386,24 +392,32 @@ class Grid {
         this.eachCell(function(cell) {
             cell.setStyle();
         });
-    }    
+    }
+
+    reset() {
+        this.eachLine(function(line) {
+            line.reset();
+        });
+        this.updateStyles();
+    }
 }
 
 function init() {
     var grid = new Grid();
     var size = grid.load([
-"2 5.. 4     ",
-".  .5. . .  ",
-"  .  5...2 .",
-"     . 422 4",
-"       ..2. ",
-"     422. 3.",
-"    .4.. .. ",
-".5.  ..2    ",
-"  . 3 3..   ",
-". 3  42  45 ",
-"24.2. .     ",
-"   .        ",
+ "  4  .5  .  ",
+" 3 . . 3    ",
+"   335 2.3  ",
+"    4 ..2 3 ",
+"        ..4 ",
+"3 .  .5 ... ",
+".5   .5 23  ",
+"    4       ",
+" 5 . 3 . 4  ",
+"..3      4 .",
+"        22. ",
+" .  5.  .   ",
+       
     ]);
     var board = $("#board");
     board.css("width", cellSize * size);
@@ -434,9 +448,13 @@ function init() {
 
     $("body").mousedown(function() { return false });
 
-    var scale = Math.min(($(window).innerHeight() - 64) / board.height(),
-                         ($(window).innerWidth() - 64) / board.width());
-    board.css("transform", "scale(" + scale + ")");
-    board.css("transform-origin", "0 0");
+    var main = $("#main-container");
+    var scale = Math.min(($(window).innerHeight() - 64) / main.height(),
+                         ($(window).innerWidth() - 64) / main.width());
+    main.css("transform", "scale(" + scale + ")");
+    main.css("transform-origin", "0 0");
+
+    $("#reset").click(function() { grid.reset() });
+    $("#reset").on("touchtap", function() { grid.reset() });
 }
 
