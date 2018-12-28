@@ -394,11 +394,17 @@ class Grid {
         });
     }
 
-    reset() {
-        this.eachLine(function(line) {
-            line.reset();
+    reset(board) {
+        var grid = this;
+        board.fadeOut(250);
+        board.queue(function() {
+            grid.eachLine(function(line) {
+                line.reset();
+            });
+            grid.updateStyles();
+            $(this).dequeue();
         });
-        this.updateStyles();
+        board.fadeIn(250);
     }
 }
 
@@ -450,15 +456,15 @@ function init() {
 
     function resize() {
         var main = $("#main-container");
-        var scale = Math.min(($(window).innerHeight() - 64) / main.height(),
-                             ($(window).innerWidth() - 64) / main.width());
+        var scale = Math.min(($(window).innerHeight() - 32) / main.height(),
+                             ($(window).innerWidth() - 8) / main.width());
         main.css("transform", "scale(" + scale + ")");
         main.css("transform-origin", "0 0");
     }
     resize();
     $(window).resize(resize);
 
-    $("#reset").click(function() { grid.reset() });
-    $("#reset").on("touchtap", function() { grid.reset() });
+    $("#reset").click(function() { grid.reset(board) });
+    $("#reset").on("touchtap", function() { grid.reset(board) });
 }
 
