@@ -518,5 +518,7 @@ function init() {
 
     $("#reset").click(function() { grid.reset(board) });
     $("#reset").on("touchtap", function() { grid.reset(board) });
+
+    $("div.playgrid").fadeOut(0).fadeIn(500);
 }
 

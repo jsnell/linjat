@@ -9,16 +9,16 @@ body {
     touch-action: none;
 }
 
+div#main-container {
+    position: absolute;
+}
+
 div.playgrid {
     position: relative;
     border-spacing: 0px;
     border-width: 2px;
     border-style: transparent;
     margin-bottom: 4px;
-}
-
-div#main-container {
-    position: absolute;
 }
 
 #board {
