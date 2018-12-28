@@ -16,6 +16,8 @@ class Line {
         this.elem.addClass("line");
 
         this.setStyle();
+
+        this.dragLeftStartSquare = false;
     }
 
     setStyle() {
@@ -79,6 +81,10 @@ class Line {
     }
 
     findEffectiveHandles(fromR, fromC, r, c, lines) {
+        if (fromR == this.r && fromC == this.c &&
+            !this.dragLeftStartSquare) {
+            return [[fromR, fromC], [fromR, fromC]];
+        }
         var handles = this.findHandles(fromR, fromC);
         if (!handles) {
             if (fromR != r && fromC != c) {
@@ -141,7 +147,8 @@ class Line {
 
     updateLine(fromR, fromC, r, c, lines) {
         if (fromR == r && fromR == this.r &&
-            fromC == c && fromC == this.c) {
+            fromC == c && fromC == this.c &&
+            !this.dragLeftStartSquare) {
             return true;
         }
         var handles = this.findEffectiveHandles(fromR, fromC, r, c, lines);
@@ -153,12 +160,6 @@ class Line {
     }
 
     finishUpdate(fromR, fromC, r, c, lines) {
-        if (fromR == r && fromR == this.r &&
-            fromC == c && fromC == this.c) {
-            this.h1 = [r, c];
-            this.h2 = [r, c];
-            return;
-        }
         var handles = this.findEffectiveHandles(fromR, fromC, r, c, lines);
         if (handles == null) {
             return;
@@ -185,23 +186,6 @@ class Cell {
     }
 
     setStyle() {
-        // var line = this.line;
-        // if (this.previewLine) {
-        //     line = this.previewLine;
-        // }
-        // this.update(line);
-        // if (line) {
-        //     if (line.length == line.targetLength) {
-        //         this.elem.css("background-color", "#0f0");
-        //     } else {
-        //         this.elem.css("background-color", "#ff0");
-        //     }
-        // } else if (this.value == '.') {
-        //     this.elem.css("background-color", "red");
-        // } else {
-        //     this.elem.css("background-color", "");
-        // }
-        // this.updateAttr(line, 'set');
     }
 
     update(line) {
@@ -279,6 +263,7 @@ class Grid {
         var line = this.findLineAt(r, c);
         if (line) {
             this.dragLine = line;
+            line.dragLeftStartSquare = false;
             this.dragStart = [r, c];
         }
     }
@@ -286,6 +271,8 @@ class Grid {
     previewDrag(r, c) {
         if (!this.dragLine)
             return;
+        if (r != this.dragStart[0] || c != this.dragStart[1])
+            this.dragLine.dragLeftStartSquare = true;
         if (!this.dragLine.updateLine(this.dragStart[0],
                                       this.dragStart[1],
                                       r,
