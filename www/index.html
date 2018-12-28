@@ -4,18 +4,25 @@
   <script src="game.js" language="javascript"></script>
   <body onload="javascript:init()">
     <div id="main-container" style="opacity: 0.0">
-      <div id="board" class="playgrid">
+      <div id="board-container">
+        <div id="board" class="playgrid">
+        </div>
       </div>
       <div id="buttons">
         <div id="reset" class="button">Reset</div>
+        <div class="separator"></div>
         <div id="done" class="button">Done</div>
+        <div class="separator"></div>
         <div id="back" class="button">Back</div>
       </div>
     </div>
     <div id="fp-container" style="opacity: 0.0;">
       <h1>Linjat</h1>
       <div id="howto" class="button">How to Play</div>
-      <div id="start" class="button">Start</div>
+      <div id="easy" class="button">Easy</div>
+      <div id="medium" class="button">Medium</div>
+      <div id="hard" class="button">Hard</div>
+      <div id="about" class="button">About</div>
     </div>
   </body>
 </html>

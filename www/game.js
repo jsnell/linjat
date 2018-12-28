@@ -450,12 +450,12 @@ class Grid {
 function startGame() {
     var grid = new Grid();
     var size = grid.load([
-        "......",
-        "1.....",
-        ".2....",
-        "..3...",
-        "...4..",
-        "....5.",
+        ".....88.",
+        "1.....89",
+        ".2...  .",
+        "..3..  .",
+        "...4.  .",
+        "....5  .",
     ]);
     var board = $("#board");
     grid.eachLine(function (line) {
@@ -480,22 +480,28 @@ function startGame() {
 
     var main = $("#main-container");
 
-    var width = cellSize * size.width + 3;
-    var height = cellSize * size.height + 3;
+    var width = cellSize * size.width + 6;
+    var height = cellSize * size.height + 6;
     board.css("width", width);
     board.css("height", height);
-    board.css("left", (main.width()- width) / 2);
 
     grid.updateStyles();
 
     $("body").mousedown(function() { return false });
 
     function resize() {
-        var scale = Math.min(($(window).innerHeight() - 32) / main.height(),
-                             ($(window).innerWidth() - 8) / main.width());
-        main.css("transform", "scale(" + scale + ")");
-        main.css("transform-origin", "0 0");
-        main.css("left", ($(window).innerWidth() - main.width() * scale) / 2);
+        var scale =
+            Math.min(Math.min(($(window).innerHeight() - 32 - 128) / height,
+                              ($(window).innerWidth() - 32) / width),
+                     2);
+        var bc = $("#board-container");
+        bc.css("width", board.width() * scale);
+        bc.css("height", board.height() * scale);
+        bc.css("left", (main.width() - bc.width()) / 2);
+        main.css("left", ($(window).innerWidth() - main.width()) / 2);
+
+        board.css("transform", "scale(" + scale + ")");
+        board.css("transform-origin", "0 0");
     }
     resize();
     $(window).resize(resize);
@@ -505,6 +511,16 @@ function startGame() {
 
     $("#main-container").css("opacity", "1.0");
     $("#main-container").fadeIn(500);
+
+    function back() {
+        main.fadeOut(250).
+            queue(function() {
+                $("#fp-container").fadeIn(250);
+                $(this).dequeue();
+            });
+    }
+    $("#back").click(back);
+    $("#back").on("touchtap", back);    
 }
 
 function init() {
@@ -520,6 +536,6 @@ function init() {
             });
     }
 
-    $("#start").click(start);
-    $("#start").on("touchtap", start);
+    $("#hard").click(start);
+    $("#hard").on("touchtap", start);
 }

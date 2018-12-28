@@ -12,14 +12,18 @@ body {
 
 div#main-container {
     position: absolute;
+    height: 99%;
+}
+
+div#board-container {
+    padding: 2px;
+    margin-top: 4px;
+    margin-bottom: 20px;
+    border-width: 5px;
 }
 
 div.playgrid {
     position: relative;
-    border-width: 5px;
-    padding: 2px;
-    margin-top: 4px;
-    margin-bottom: 4px;
 }
 
 #board {
@@ -47,12 +51,13 @@ div#fp-container {
 }
 
 div#buttons {
-    margin-top: 10px;
-    margin: 5px;
+    display: flex;
+    justify-content: flex-center;
+    flex-direction: row;
 }
 
-div#buttons div.button {
-    display: inline-block;
+div#buttons div.separator {
+    flex: 1;
 }
 
 div.button {
@@ -66,8 +71,11 @@ div.button {
     border: solid 1px #044; 
     box-shadow: 5px 5px 0px 0px #066; 
     font-family: 'coiny';
-    margin-right: 10px;
     margin-top: 10px;
+}
+
+div.separator {
+    width: 10px;
 }
 
 @media not all and (hover: none) {
