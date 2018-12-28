@@ -59,8 +59,26 @@ class Line {
         this.updateAttr(this.length > this.targetLength, "line-toolong");
     }
 
-    findEffectiveHandles(fromR, fromC, r, c) {
-        // TODO: Forbid intersecting lines
+    intersects(h1, h2) {
+        var a_min_r = Math.min(this.h1[0], this.h2[0]);
+        var a_max_r = Math.max(this.h1[0], this.h2[0]);
+        var a_min_c = Math.min(this.h1[1], this.h2[1]);
+        var a_max_c = Math.max(this.h1[1], this.h2[1]);
+        var b_min_r = Math.min(h1[0], h2[0]);
+        var b_max_r = Math.max(h1[0], h2[0]);
+        var b_min_c = Math.min(h1[1], h2[1]);
+        var b_max_c = Math.max(h1[1], h2[1]);
+        var r_intersect =
+            (a_min_r >= b_min_r && a_min_r <= b_max_r) ||
+            (b_min_r >= a_min_r && b_min_r <= a_max_r);
+        var c_intersect =
+            (a_min_c >= b_min_c && a_min_c <= b_max_c) ||
+            (b_min_c >= a_min_c && b_min_c <= a_max_c);
+
+        return r_intersect && c_intersect;
+    }
+
+    findEffectiveHandles(fromR, fromC, r, c, lines) {
         var handles = this.findHandles(fromR, fromC);
         if (!handles) {
             if (fromR != r && fromC != c) {
@@ -77,25 +95,56 @@ class Line {
         }
         var handle = handles[0];
         var other = handles[1];
+        var ret;
         if ((r != other[0]) && (c != other[1])) {
-            return [[r, c], [this.r, this.c]];
+            ret = [[r, c], [this.r, this.c]];
         } else if ((r < this.r && other[0] < this.r) ||
                    (r > this.r && other[0] > this.r) ||
                    (c < this.c && other[1] < this.c) ||
                    (c > this.c && other[1] > this.c)) {
-            return [[this.r, this.c], other];
+            ret = [[this.r, this.c], other];
         } else {
-            return [[r, c], other];
+            ret = [[r, c], other];
         }
-        return true;
+
+        var self = this;
+        lines.forEach(function (line) {
+            if (line == self)
+                return;
+            while (true) {
+                var intersect = line.intersects(ret[0], [self.r, self.c]);
+                if (!intersect)
+                    break;
+                self.moveTowardCenter(ret[0]);
+            }
+            while (true) {
+                var intersect = line.intersects(ret[1], [self.r, self.c]);
+                if (!intersect)
+                    break;
+                self.moveTowardCenter(ret[1]);
+            }
+        });
+
+        return ret;
     }
 
-    updateLine(fromR, fromC, r, c) {
+    moveTowardCenter(handle) {
+        if (handle[0] < this.r)
+            handle[0]++;
+        if (handle[0] > this.r)
+            handle[0]--;
+        if (handle[1] < this.c)
+            handle[1]++;
+        if (handle[1] > this.c)
+            handle[1]--;
+    }
+
+    updateLine(fromR, fromC, r, c, lines) {
         if (fromR == r && fromR == this.r &&
             fromC == c && fromC == this.c) {
             return true;
         }
-        var handles = this.findEffectiveHandles(fromR, fromC, r, c);
+        var handles = this.findEffectiveHandles(fromR, fromC, r, c, lines);
         if (handles == null) {
             return false;
         }
@@ -103,14 +152,14 @@ class Line {
         return true;
     }
 
-    finishUpdate(fromR, fromC, r, c) {
+    finishUpdate(fromR, fromC, r, c, lines) {
         if (fromR == r && fromR == this.r &&
             fromC == c && fromC == this.c) {
             this.h1 = [r, c];
             this.h2 = [r, c];
             return;
         }
-        var handles = this.findEffectiveHandles(fromR, fromC, r, c);
+        var handles = this.findEffectiveHandles(fromR, fromC, r, c, lines);
         if (handles == null) {
             return;
         }
@@ -240,7 +289,8 @@ class Grid {
         if (!this.dragLine.updateLine(this.dragStart[0],
                                       this.dragStart[1],
                                       r,
-                                      c)) {
+                                      c,
+                                      this.lines)) {
             this.dragLine.setStyle();
         }
     }
@@ -252,11 +302,13 @@ class Grid {
         if (this.dragLine.updateLine(this.dragStart[0],
                                      this.dragStart[1],
                                      r,
-                                     c)) {
+                                     c,
+                                     this.lines)) {
             this.dragLine.finishUpdate(this.dragStart[0],
                                        this.dragStart[1],
                                        r,
-                                       c);
+                                       c,
+                                       this.lines);
         }
 
         this.dragLine.setStyle();
