@@ -205,7 +205,7 @@ class Grid {
         });
         this.grid = grid;
         this.lines = lines;
-        return grid.length;
+        return { width: grid[0].length, height: grid.length };
     }
 
     at(r, c) {
@@ -411,22 +411,22 @@ class Grid {
 function init() {
     var grid = new Grid();
     var size = grid.load([
- "  4  .5  .  ",
-" 3 . . 3    ",
-"   335 2.3  ",
-"    4 ..2 3 ",
-"        ..4 ",
-"3 .  .5 ... ",
-".5   .5 23  ",
-"    4       ",
-" 5 . 3 . 4  ",
-"..3      4 .",
-"        22. ",
-" .  5.  .   ",
-       
+".3 .     ",
+"   2 4. 3",
+"4.4      ",
+"  . 2  4 ",
+"  3.  4..",
+".     .2 ",
+"   .2    ",
+" . 3..3 4",
+"23 .2..3.",
+"..5    54",
+"  .      ",
+" .2      ",
+        "4 .  244 ",
+        "5    .   ",
     ]);
     var board = $("#board");
-    board.css("width", cellSize * size);
     grid.eachLine(function (line) {
         board.append(line.elem);
     });
@@ -447,8 +447,8 @@ function init() {
     board.on('touchleave', grid.makeCancelDrag());
     board.on('touchcancel', grid.makeCancelDrag());
 
-    board.css("width", cellSize * size + 3);
-    board.css("height", cellSize * size + 3);
+    board.css("width", cellSize * size.width + 3);
+    board.css("height", cellSize * size.height + 3);
 
     grid.updateStyles();
 

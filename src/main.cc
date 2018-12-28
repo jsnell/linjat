@@ -9,7 +9,7 @@
 #include <vector>
 
 class Game {
-    static const int W = 13, H = 12, N = 28;
+    static const int W = 10, H = 14, N = 28;
 
 public:
     using Hint = std::pair<uint16_t, uint16_t>;
