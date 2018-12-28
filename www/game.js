@@ -448,11 +448,15 @@ function init() {
 
     $("body").mousedown(function() { return false });
 
-    var main = $("#main-container");
-    var scale = Math.min(($(window).innerHeight() - 64) / main.height(),
-                         ($(window).innerWidth() - 64) / main.width());
-    main.css("transform", "scale(" + scale + ")");
-    main.css("transform-origin", "0 0");
+    function resize() {
+        var main = $("#main-container");
+        var scale = Math.min(($(window).innerHeight() - 64) / main.height(),
+                             ($(window).innerWidth() - 64) / main.width());
+        main.css("transform", "scale(" + scale + ")");
+        main.css("transform-origin", "0 0");
+    }
+    resize();
+    $(window).resize(resize);
 
     $("#reset").click(function() { grid.reset() });
     $("#reset").on("touchtap", function() { grid.reset() });
