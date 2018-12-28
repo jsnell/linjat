@@ -1,6 +1,6 @@
 "use strict";
 
-var cellSize = 25;
+var cellSize = 50;
 
 class Line {
     constructor(targetLength, r, c) {
@@ -447,23 +447,15 @@ class Grid {
     }
 }
 
-function init() {
+function startGame() {
     var grid = new Grid();
     var size = grid.load([
-".3 .     ",
-"   2 4. 3",
-"4.4      ",
-"  . 2  4 ",
-"  3.  4..",
-".     .2 ",
-"   .2    ",
-" . 3..3 4",
-"23 .2..3.",
-"..5    54",
-"  .      ",
-" .2      ",
-        "4 .  244 ",
-        "5    .   ",
+        "......",
+        "1.....",
+        ".2....",
+        "..3...",
+        "...4..",
+        "....5.",
     ]);
     var board = $("#board");
     grid.eachLine(function (line) {
@@ -486,19 +478,24 @@ function init() {
     board.on('touchleave', grid.makeCancelDrag());
     board.on('touchcancel', grid.makeCancelDrag());
 
-    board.css("width", cellSize * size.width + 3);
-    board.css("height", cellSize * size.height + 3);
+    var main = $("#main-container");
+
+    var width = cellSize * size.width + 3;
+    var height = cellSize * size.height + 3;
+    board.css("width", width);
+    board.css("height", height);
+    board.css("left", (main.width()- width) / 2);
 
     grid.updateStyles();
 
     $("body").mousedown(function() { return false });
 
     function resize() {
-        var main = $("#main-container");
         var scale = Math.min(($(window).innerHeight() - 32) / main.height(),
                              ($(window).innerWidth() - 8) / main.width());
         main.css("transform", "scale(" + scale + ")");
         main.css("transform-origin", "0 0");
+        main.css("left", ($(window).innerWidth() - main.width() * scale) / 2);
     }
     resize();
     $(window).resize(resize);
@@ -506,6 +503,23 @@ function init() {
     $("#reset").click(function() { grid.reset(board) });
     $("#reset").on("touchtap", function() { grid.reset(board) });
 
-    $("div.playgrid").fadeOut(0).fadeIn(500);
+    $("#main-container").css("opacity", "1.0");
+    $("#main-container").fadeIn(500);
 }
 
+function init() {
+    var fp = $("#fp-container");
+    fp.css("opacity", "1.0");
+    fp.fadeIn(500);
+
+    function start() {
+        fp.fadeOut(250).
+            queue(function() {
+                startGame();
+                $(this).dequeue();
+            });
+    }
+
+    $("#start").click(start);
+    $("#start").on("touchtap", start);
+}

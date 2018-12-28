@@ -3,11 +3,19 @@
   <script src="jquery-3.3.1.min.js" language="javascript"></script>
   <script src="game.js" language="javascript"></script>
   <body onload="javascript:init()">
-    <div id="main-container">
+    <div id="main-container" style="opacity: 0.0">
       <div id="board" class="playgrid">
       </div>
-      <div id="reset" class="button">Reset</div>
-      <div id="done" class="button">Done</div>
+      <div id="buttons">
+        <div id="reset" class="button">Reset</div>
+        <div id="done" class="button">Done</div>
+        <div id="back" class="button">Back</div>
+      </div>
+    </div>
+    <div id="fp-container" style="opacity: 0.0;">
+      <h1>Linjat</h1>
+      <div id="howto" class="button">How to Play</div>
+      <div id="start" class="button">Start</div>
     </div>
   </body>
 </html>
