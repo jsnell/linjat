@@ -480,15 +480,12 @@ private:
                             continue;
                         Mask pi = possible_[ai], pj = possible_[aj],
                             pk = possible_[ak];
-                        if ((pi & pj) != piece_mask(piece)) {
+                        if ((pi & pj) != piece_mask(piece))
                             possible_[ak] &= ~piece_mask(piece);
-                        }
-                        if ((pi & pk) != piece_mask(piece)) {
+                        if ((pi & pk) != piece_mask(piece))
                             possible_[aj] &= ~piece_mask(piece);
-                        }
-                        if ((pj & pk) != piece_mask(piece)) {
+                        if ((pj & pk) != piece_mask(piece))
                             possible_[ai] &= ~piece_mask(piece);
-                        }
                     }
                 }
             }
@@ -498,7 +495,11 @@ private:
     int distance(int a, int b) {
         int ra = a / W, rb = b / W,
             ca = a % W, cb = b % W;
-        return std::abs(ra - rb) + std::abs(ca - cb);
+        int rd = std::abs(ra - rb), cd = std::abs(ca - cb);
+        if (rd && cd) {
+            return W + H + 1;
+        }
+        return rd + cd;
     }
 
     std::vector<Hint> hints_;

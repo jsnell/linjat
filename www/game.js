@@ -450,16 +450,16 @@ class Grid {
 function startGame() {
     var grid = new Grid();
     var size = grid.load([
+ "    .  4 ",
+"   .     ",
+"   35 .. ",
+"   .     ",
+"    .    ",
 "         ",
-"   4  .  ",
-"   3 .3  ",
-"      .  ",
-"   .  .  ",
+"    3.5  ",
 "         ",
-"   .  4 .",
-"   4  .  ",
+"    .3.  ",
 "         ",
-"      . 5",
     ]);
     var board = $("#board");
     grid.eachLine(function (line) {
