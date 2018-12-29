@@ -3,7 +3,44 @@
   <script src="jquery-3.3.1.min.js" language="javascript"></script>
   <script src="game.js" language="javascript"></script>
   <body onload="javascript:init()">
-    <div id="main-container" style="opacity: 0.0">
+    <div id="help-container" class="fp" style="display: none">
+      <h1>Linjat</h1>
+      <div class="help">
+        <h2>How to play</h2>
+        <ul>
+          <li>Cover each number with a line of that length.
+          <li>Cover all the dots with lines. 
+          <li>Lines can't cross.
+          <li>No guessing / backtracking needed, just logical deduction.
+        </ul>
+        <div id="back-help" class="button">Back</div>
+      </div>
+    </div>
+    <div id="about-container" class="fp" style="display: none">
+      <h1>Linjat</h1>
+      <div class="help">
+        <h2>About</h2>
+        <p>
+          <i>Linjat</i> designed and written by <a href="https://www.snellman.net/">
+            Juho Snellman</a>.
+        </p>
+
+        <p>
+          <ul>
+            <li>jQuery v3.3.1, (c) JS Foundation and other contributors
+              <a href="https://github.com/jquery/jquery/blob/master/LICENSE.txt">
+                (license)
+              </a>
+            <li><a href="https://github.com/marcelommp/Coiny">Coiny</a>
+              Marcelo Magalhães,
+              <a href=https://github.com/marcelommp/Coiny/blob/gh-pages/OFL.txt>(license)</a>.
+          </ul>
+        </p>
+        </ul>
+        <div id="back-about" class="button">Back</div>
+      </div>
+    </div>
+    <div id="main-container" style="display: none">
       <div id="board-container">
         <div id="board" class="playgrid">
         </div>
@@ -16,7 +53,7 @@
         <div id="back" class="button">Back</div>
       </div>
     </div>
-    <div id="fp-container" style="opacity: 0.0;">
+    <div id="fp-container" class="fp" style="display: none">
       <h1>Linjat</h1>
       <div id="howto" class="button">How to Play</div>
       <div id="easy" class="button">Easy</div>

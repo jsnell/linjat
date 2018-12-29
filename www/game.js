@@ -509,28 +509,87 @@ function startGame() {
     $("#reset").click(function() { grid.reset(board) });
     $("#reset").on("touchtap", function() { grid.reset(board) });
 
-    $("#main-container").css("opacity", "1.0");
+    main.show();
     $("#main-container").fadeIn(500);
 
     function back() {
         main.fadeOut(250).
             queue(function() {
-                $("#fp-container").fadeIn(250);
+                frontPage();
                 $(this).dequeue();
             });
     }
     $("#back").click(back);
     $("#back").on("touchtap", back);    
+
+    document.location.hash = "game";
 }
 
-function init() {
+function help() {
+    var help = $("#help-container");
+    help.fadeIn(250);
+    document.location.hash = "help";
+
+    function back() {
+        help.fadeOut(250).
+            queue(function() {
+                frontPage();
+                $(this).dequeue();
+            });
+    }
+    $("#back-help").click(back);
+    $("#back-help").on("touchtap", back);    
+}
+
+function about() {
+    var about = $("#about-container");
+    about.fadeIn(250);
+    document.location.hash = "about";
+
+    function back() {
+        about.fadeOut(250).
+            queue(function() {
+                frontPage();
+                $(this).dequeue();
+            });
+    }
+    $("#back-about").click(back);
+    $("#back-about").on("touchtap", back);    
+}
+
+function frontPage() {
     var fp = $("#fp-container");
-    fp.css("opacity", "1.0");
+    fp.show();
     fp.fadeIn(500);
+
+    function howto() {
+        fp.fadeOut(250).
+            queue(function() {
+                fp.hide();
+                help();
+                $(this).dequeue();
+            });
+    };
+    
+    $("#howto").click(howto);
+    $("#howto").on("touchtap", howto);
+
+    function aboutgame() {
+        fp.fadeOut(250).
+            queue(function() {
+                fp.hide();
+                about();
+                $(this).dequeue();
+            });
+    };
+    
+    $("#about").click(aboutgame);
+    $("#about").on("touchtap", aboutgame);
 
     function start() {
         fp.fadeOut(250).
             queue(function() {
+                fp.hide();
                 startGame();
                 $(this).dequeue();
             });
@@ -538,4 +597,19 @@ function init() {
 
     $("#hard").click(start);
     $("#hard").on("touchtap", start);
+
+    document.location.hash = "fp";
+}
+
+function init() {
+    var hash = document.location.hash;
+    if (hash == "#game") {
+        startGame();
+    } else if (hash == "#help") {
+        help();
+    } else if (hash == "#about") {
+        about();
+    } else {
+        frontPage();
+    }
 }
