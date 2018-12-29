@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <bitset>
 #include <cassert>
+#include <cstdlib>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -9,7 +10,7 @@
 #include <vector>
 
 class Game {
-    static const int W = 10, H = 14, N = 28;
+    static const int W = 10, H = 10, N = 6;
 
 public:
     using Hint = std::pair<uint16_t, uint16_t>;
@@ -20,6 +21,7 @@ public:
     struct Options {
         bool dep_ = true;
         bool dep_non_forced_ = true;
+        bool xxx_ = true;
     };
 
     Game() : Game(Options()) {
@@ -142,6 +144,9 @@ public:
         }
         if (opt_.dep_) {
             update_dependent();
+        }
+        if (opt_.xxx_) {
+            update_xxx();
         }
     }
 
@@ -349,6 +354,13 @@ private:
         return true;
     }
 
+    // Find dependencies. E.g.:
+    //
+    //   53.. 4
+    //    5 2
+    //
+    // Above any row that covers the left dot must also cover the right
+    // dot. So the 2 can't go up to cover the right dot.
     void update_dependent() {
         for (int at = 0; at < W * H; ++at) {
             if (!forced_[at])
@@ -423,6 +435,72 @@ private:
         return ret;
     }
 
+    // Minimum coverage property:
+    //
+    //  3
+    //  X2Z
+    //   Y4
+    //
+    // 2 has to cover Y or Z, so 3 must cover X.
+    //
+    // There exist a line L1, which can cover three forced squares.
+    void update_xxx() {
+        for (int piece = 0; piece < N; ++piece) {
+            int size = hints_[piece].second;
+            std::vector<int> covered;
+            Mask m = 0;
+            for (int at = 0; at < W * H; ++at) {
+                if (!forced_[at] || fixed_[at] ||
+                    possible_count(at) != 2)
+                    continue;
+                if (!(possible_[at] & piece_mask(piece)))
+                    continue;
+                covered.push_back(at);
+                m |= possible_[at];
+            }
+            if (__builtin_popcountl(m) < 3 ||
+                covered.size() < 3)
+                continue;
+            // Find triplets of squares where:
+            // - All can be covered by our candidate piece.
+            // - All can be covered by exactly two pieces.
+            // - No two can be covered by the same piece at the
+            //   same time. (Think it's enough to just check the
+            //   candidate piece).
+            // - Two can separately be covered by some other piece.
+            // - If that happens, the third square can't be covered
+            //   by the candidate.
+            for (int i = 0; i < covered.size(); ++i) {
+                for (int j = i + 1; j < covered.size(); ++j) {
+                    for (int k = j + 1; k < covered.size(); ++k) {
+                        int ai = covered[i], aj = covered[j], ak = covered[k];
+                        if (distance(ai, aj) <= size ||
+                            distance(ai, ak) <= size ||
+                            distance(aj, ak) <= size)
+                            continue;
+                        Mask pi = possible_[ai], pj = possible_[aj],
+                            pk = possible_[ak];
+                        if ((pi & pj) != piece_mask(piece)) {
+                            possible_[ak] &= ~piece_mask(piece);
+                        }
+                        if ((pi & pk) != piece_mask(piece)) {
+                            possible_[aj] &= ~piece_mask(piece);
+                        }
+                        if ((pj & pk) != piece_mask(piece)) {
+                            possible_[ai] &= ~piece_mask(piece);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    int distance(int a, int b) {
+        int ra = a / W, rb = b / W,
+            ca = a % W, cb = b % W;
+        return std::abs(ra - rb) + std::abs(ca - cb);
+    }
+
     std::vector<Hint> hints_;
     uint16_t valid_orientation_[N] { 0 };
     MaskArray orig_possible_;
@@ -456,7 +534,7 @@ int main(int argc, char** argv) {
             continue;
         }
 
-        int solve_dep = 0, solve_dep_forced = 0, solve_nodep = 0;
+        int solve_xxx = 0, solve_dep = 0, solve_dep_forced = 0, solve_nodep = 0;
         game.reset_hints();
         std::vector<int> progress;
         for (int i = 0; i < 100; ++i) {
@@ -464,10 +542,18 @@ int main(int argc, char** argv) {
             int count = game.reset_fixed();
             progress.push_back(count);
             if (!count) {
-                // if (i >= 12) {
-                //     printf("dep rounds: %d\n", i);
-                //     game.print_puzzle();
-                // }
+                if (game.solved())
+                    solve_xxx = i;
+                break;
+            }
+        }
+
+        game.reset_hints();
+        game.opt_.xxx_ = false;
+        for (int i = 0; i < 100; ++i) {
+            game.reset_possible();
+            int count = game.reset_fixed();
+            if (!count) {
                 if (game.solved())
                     solve_dep = i;
                 break;
@@ -504,8 +590,9 @@ int main(int argc, char** argv) {
             }
         }
 
-        if (solve_dep && !solve_nodep) {
-            printf("DEP=%d DEP_FORCED=%d NODEP=%d | ",
+        if (solve_xxx && !solve_dep) {
+            printf("XXX=%d DEP=%d DEP_FORCED=%d NODEP=%d | ",
+                   solve_xxx,
                    solve_dep,
                    solve_dep_forced,
                    solve_nodep);
