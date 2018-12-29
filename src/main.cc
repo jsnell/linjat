@@ -145,12 +145,12 @@ public:
         }
     }
 
-    bool reset_fixed() {
-        bool updated = false;
+    int reset_fixed() {
+        int count = 0;
         for (int piece = 0; piece < N; ++piece) {
-            updated |= update_fixed(piece);
+            count += update_fixed(piece);
         }
-        return updated;
+        return count;
     }
 
     bool force_one_square() {
@@ -458,9 +458,12 @@ int main(int argc, char** argv) {
 
         int solve_dep = 0, solve_dep_forced = 0, solve_nodep = 0;
         game.reset_hints();
+        std::vector<int> progress;
         for (int i = 0; i < 100; ++i) {
             game.reset_possible();
-            if (!game.reset_fixed()) {
+            int count = game.reset_fixed();
+            progress.push_back(count);
+            if (!count) {
                 // if (i >= 12) {
                 //     printf("dep rounds: %d\n", i);
                 //     game.print_puzzle();
@@ -502,10 +505,14 @@ int main(int argc, char** argv) {
         }
 
         if (solve_dep && !solve_nodep) {
-            printf("DEP=%d DEP_FORCED=%d NODEP=%d\n",
+            printf("DEP=%d DEP_FORCED=%d NODEP=%d | ",
                    solve_dep,
                    solve_dep_forced,
                    solve_nodep);
+            for (auto count : progress) {
+                printf("%d ", count);
+            }
+            printf("\n");
             game.print_puzzle();
 
             // game.reset_hints();
