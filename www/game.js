@@ -548,6 +548,8 @@ class Game {
 
         function play() {
             game.leaveFrontPage(function() {
+                // TODO: Store solved puzzles in localstorage,
+                // jump to first unsolved.
                 game.startGame(1);
             });
             return false;
