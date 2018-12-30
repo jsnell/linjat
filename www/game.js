@@ -22,6 +22,7 @@ class Line {
 
     setStyle() {
         this.setLineStyle(this.h1, this.h2);
+        this.elem.removeClass("blink");
     }
 
     updateAttr(set, klass) {
@@ -173,6 +174,23 @@ class Line {
         this.h2 = [this.r, this.c];
         this.setStyle();
     }
+
+    covered(handle) {
+        if (!handle) {
+            return this.covered(this.h1.slice(0)).concat(this.covered(this.h2.slice(0)));
+        }
+
+        var ret = [];
+        while (true) {
+            ret.push([handle[0], handle[1]]);
+            this.moveTowardCenter(handle);
+            if (handle[0] == this.r && handle[1] == this.c) {
+                break;
+            }
+        } 
+
+        return ret;
+    }
 }
 
 class Cell {
@@ -186,6 +204,7 @@ class Cell {
     }
 
     setStyle() {
+        this.elem.removeClass("blink");
     }
 
     update(line) {
@@ -419,7 +438,6 @@ class Grid {
         var dr = (from[0] == to[0] ? 0 : Math.sign(to[0] - from[0]));
         var dc = (from[1] == to[1] ? 0 : Math.sign(to[1] - from[1]));
         while (from[0] != to[0] || from[1] != to[1]) {
-            console.log(from);
             from[0] += dr;
             from[1] += dc;
             var cell = this.at(from[0], from[1]);
@@ -464,7 +482,35 @@ class Grid {
     }
 
     check() {
-        return true;
+        var ret = true;
+        var covered = {}
+        var blink = [];
+
+        this.lines.forEach(function(line) {
+            line.elem.removeClass("blink");
+            line.covered().forEach(function(at) {
+                covered[at] = true;
+            });
+            if (line.length != line.targetLength) {
+                blink.push(line.elem);
+            }
+        });
+
+        this.eachCell(function(cell) {
+            cell.elem.removeClass("blink");
+            if (cell.value == '.' &&
+                !covered[[cell.r, cell.c]]) {
+                blink.push(cell.elem);
+            }
+        });
+        
+        setTimeout(function(){
+            blink.forEach(function (elem) {
+                elem.addClass("blink");
+            });
+        }, 1);
+        
+        return blink.length == 0;
     }
 }
 
