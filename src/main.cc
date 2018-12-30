@@ -10,9 +10,9 @@
 #include <vector>
 
 class Game {
-    static const int W = 10, H = 10, N = 14;
-
 public:
+    static const int W = 8, H = 10, N = 14;
+
     using Hint = std::pair<uint16_t, uint16_t>;
     using Mask = uint64_t;
     using MaskArray = std::array<Mask, H * W>;
@@ -67,7 +67,7 @@ public:
         }
     }
 
-    void print_puzzle() {
+    void print_puzzle(bool json) {
         std::map<int, int> hints;
         for (auto hint : hints_) {
             hints[hint.first] = hint.second;
@@ -75,7 +75,9 @@ public:
 
         int at = 0;
         for (int r = 0; r < H; ++r) {
-            printf("\"");
+            if (json) {
+                printf("\"");
+            }
             for (int c = 0; c < W; ++c) {
                 if (!border_[at]) {
                     if (hints.count(at)) {
@@ -88,7 +90,14 @@ public:
                 }
                 ++at;
             }
-            printf("\",\n");
+            if (json) {
+                printf("\"");
+                if (r != H - 1) {
+                    printf(", ");
+                }
+            } else {
+                printf("\n");
+            }
         }
     }
 
@@ -509,6 +518,7 @@ private:
 };
 
 int main(int argc, char** argv) {
+    assert(argc == 2);
     srandom(atoi(argv[1]));
     for (int j = 0; j < 1000000; ++j) {
         Game game;
@@ -588,16 +598,24 @@ int main(int argc, char** argv) {
         }
 
         if (solve_xxx && !solve_dep) {
-            printf("XXX=%d DEP=%d DEP_FORCED=%d NODEP=%d | ",
+            printf("{"
+                   "\"rows\": %d, \"cols\": %d,"
+                   "\"xxx\": %d, \"dep\": %d,"
+                   "\"dep_forced\": %d, \"nodep\": %d, "
+                   "\"width\": [",
+                   Game::H,
+                   Game::W,
                    solve_xxx,
                    solve_dep,
                    solve_dep_forced,
                    solve_nodep);
-            for (auto count : progress) {
-                printf("%d ", count);
+            for (int i = 0; i < progress.size(); ++i) {
+                auto count = progress[i];
+                printf("%s%d", (i ? ", " : ""), count);
             }
-            printf("\n");
-            game.print_puzzle();
+            printf("], \"puzzle\": [");
+            game.print_puzzle(true);
+            printf("]}, \n");
 
             // game.reset_hints();
             // game.opt_.dep_ = true;
@@ -615,4 +633,5 @@ int main(int argc, char** argv) {
             // }
         }
     }
+    printf("{}");
 }

@@ -465,7 +465,8 @@ class Grid {
 }
 
 class Game {
-    constructor() {
+    constructor(games) {
+        this.games = games;
         this.grid = new Grid();
         this.fp = $("#fp-container");
         this.main = $("#main-container");
@@ -497,7 +498,7 @@ class Game {
 
         function play() {
             game.leaveFrontPage(function() {
-                game.startGame();
+                game.startGame(1);
             });
             return false;
         }
@@ -535,28 +536,17 @@ class Game {
         $("#back").click(back);
     }
 
-    startGame() {
+    startGame(gameId) {
         var game = this;
 
-        this.main.fadeIn(250);
+        this.main.show();
         this.current = this.main;
         document.location.hash = "game";
 
         var grid = this.grid;
         var board = this.board;
         
-        var size = grid.load([
-            "   .2    ",
-            "   .  5. ",
-            "    2.   ",
-            "    .    ",
-            "    2.4  ",
-            "   ..4  4",
-            "  .2  . 3",
-            "   . 3.  ",
-            "   2 4   ",
-            "  5. .2  ",
-        ]);
+        var size = grid.load(game.games[gameId].puzzle);
 
         board.empty();
         grid.eachLine(function (line) {
@@ -590,10 +580,12 @@ class Game {
         }
         resize();
         $(window).resize(resize);
+
+        document.location.hash = "game." + gameId;
     }
 
     help() {
-        this.helpContainer.fadeIn(250);
+        this.helpContainer.show();
         this.current = this.helpContainer;
         document.location.hash = "help";
     }
@@ -612,7 +604,7 @@ class Game {
 
     frontPage() {
         document.location.hash = "fp";
-        this.fp.fadeIn(250);
+        this.fp.show();
         this.current = this.fp;
     }
 
@@ -626,8 +618,8 @@ function preventDefault(e){
     e.preventDefault();
 }
 
-function init() {
-    var game = new Game();
+function initUI(games) {
+    var game = new Game(games);
 
     var hash = document.location.hash;
     $("body").mousedown(function() { return false });
@@ -647,8 +639,9 @@ function init() {
     document.body.addEventListener('touchmove', preventDefault,
                                    { passive: false });
 
-    if (hash == "#game") {
-        game.startGame();
+    if (hash.startsWith("#game.")) {
+        var gameid = hash.replace("#game.", "");
+        game.startGame(gameid);
     } else if (hash == "#help") {
         game.help();
     } else if (hash == "#about") {
@@ -656,4 +649,16 @@ function init() {
     } else {
         game.frontPage();
     }
+}
+
+function init() {
+    $.ajax({
+        url: 'data/puzzles.json',
+        dataType: 'json',
+    }).done(function(response) {
+        initUI(response);
+    }).fail(function(err) {
+        console.log("Couldn't load games", err);
+        // TODO: Show error message.
+    });
 }
