@@ -47,13 +47,13 @@ class Line {
         if (h1[0] > h2[0] || h1[1] > h2[1]) {
             return this.setLineStyle(h2, h1);
         }
-        this.elem.css("top", h1[0] * cellSize + 2);
-        this.elem.css("left", h1[1] * cellSize + 2);        
+        this.elem.css("top", h1[0] * cellSize + 4);
+        this.elem.css("left", h1[1] * cellSize + 4);        
 
         var height = (1 + Math.abs(h1[0] - h2[0]));
         var width = (1 + Math.abs(h1[1] - h2[1]));
-        this.elem.css("height", cellSize * height - 4);
-        this.elem.css("width", cellSize * width - 4);
+        this.elem.css("height", cellSize * height - 8);
+        this.elem.css("width", cellSize * width - 8);
 
         this.length = Math.max(width, height);
 
@@ -238,6 +238,9 @@ class Grid {
         });
         this.grid = grid;
         this.lines = lines;
+        this.dragStart = null;
+        this.dragLine = null;
+
         return { width: grid[0].length, height: grid.length };
     }
 
@@ -302,28 +305,39 @@ class Grid {
         this.dragLine = null;
     }
 
-    makeStartDrag(r, c) {
+    rowColumnFromMouseEventWrapper(fun) {
         var grid = this;
         return function(event) {
-            grid.startDrag(r, c);
-            return false;
+            var elem = $(document.elementFromPoint(event.pageX,
+                                                   event.pageY));
+            var cell = elem.data('cell');
+            if (!cell) {
+                return false;
+            }
+
+            return fun(cell.r, cell.c);
         };
     }
 
-    makePreviewDrag(r, c) {
+    makeStartDrag() {
         var grid = this;
-        return function() {
-            grid.previewDrag(r, c);
-            return false;
-        };
+        return this.rowColumnFromMouseEventWrapper(function(r, c) {
+            grid.startDrag(r, c)
+        });
     }
 
-    makeStopDrag(r, c) {
+    makePreviewDrag() {
         var grid = this;
-        return function() {
-            grid.stopDrag(r, c);
-            return false;
-        };
+        return this.rowColumnFromMouseEventWrapper(function(r, c) {
+            grid.previewDrag(r, c)
+        });
+    }
+
+    makeStopDrag() {
+        var grid = this;
+        return this.rowColumnFromMouseEventWrapper(function(r, c) {
+            grid.stopDrag(r, c)
+        });
     }
 
     makeCancelDrag() {
@@ -447,166 +461,167 @@ class Grid {
     }
 }
 
-function startGame() {
-    var grid = new Grid();
-   var size = grid.load([
-"   .2    ",
-"   .  5. ",
-"    2.   ",
-"    .    ",
-"    2.4  ",
-"   ..4  4",
-"  .2  . 3",
-"   . 3.  ",
-"   2 4   ",
-"  5. .2  ",
-    ]);
-    var board = $("#board");
-    grid.eachLine(function (line) {
-        board.append(line.elem);
-    });
-    grid.eachCell(function (cell) {
-        board.append(cell.elem);
-        cell.elem.text(cell.value);
-        var r = cell.r;
-        var c = cell.c;
-        cell.elem.mousedown(grid.makeStartDrag(r, c));
-        cell.elem.mouseup(grid.makeStopDrag(r, c));
-        cell.elem.mousemove(grid.makePreviewDrag(r, c));
-    });
-    board.mouseleave(grid.makeCancelDrag());
-
-    board.on('touchstart', grid.makeStartDragTouch());
-    board.on('touchend', grid.makeStopDragTouch());
-    board.on('touchmove', grid.makePreviewDragTouch());
-    board.on('touchleave', grid.makeCancelDrag());
-    board.on('touchcancel', grid.makeCancelDrag());
-
-    var main = $("#main-container");
-
-    var width = cellSize * size.width + 6;
-    var height = cellSize * size.height + 6;
-    board.css("width", width);
-    board.css("height", height);
-
-    grid.updateStyles();
-
-    function resize() {
-        var scale =
-            Math.min(Math.min(($(window).innerHeight() - 32 - 128) / height,
-                              ($(window).innerWidth() - 32) / width),
-                     2);
-        var bc = $("#board-container");
-        bc.css("width", board.width() * scale);
-        bc.css("height", board.height() * scale);
-        bc.css("left", (main.width() - bc.width()) / 2);
-        main.css("left", ($(window).innerWidth() - main.width()) / 2);
-
-        board.css("transform", "scale(" + scale + ")");
-        board.css("transform-origin", "0 0");
-    }
-    resize();
-    $(window).resize(resize);
-
-    $("#reset").click(function() { grid.reset(board) });
-    $("#reset").on("touchtap", function() { grid.reset(board) });
-
-    main.show();
-    $("#main-container").fadeIn(500);
-
-    function back() {
-        main.fadeOut(250).
-            queue(function() {
-                frontPage();
-                $(this).dequeue();
-            });
-        return false;
-    }
-    $("#back").click(back);
-    $("#back").on("touchtap", back);    
-
-    document.location.hash = "game";
-}
-
-function help() {
-    var help = $("#help-container");
-    help.fadeIn(250);
-    document.location.hash = "help";
-
-    function back() {
-        help.fadeOut(250).
-            queue(function() {
-                frontPage();
-                $(this).dequeue();
-            });
-        return false;
-    }
-    $("#back-help").click(back);
-    $("#back-help").on("touchtap", back);    
-}
-
-function about() {
-    var about = $("#about-container");
-    about.fadeIn(250);
-    document.location.hash = "about";
-
-    function back() {
-        about.fadeOut(250).
-            queue(function() {
-                frontPage();
-                $(this).dequeue();
-            });
-        return false;
-    }
-    $("#back-about").click(back);
-    $("#back-about").on("touchtap", back);    
-}
-
-function frontPage() {
-    var fp = $("#fp-container");
-    fp.show();
-    fp.fadeIn(500);
-
-    function howto() {
-        fp.fadeOut(250).
-            queue(function() {
-                fp.hide();
-                help();
-                $(this).dequeue();
-            });
-        return false;
-    };
-    
-    $("#howto").click(howto);
-    $("#howto").on("touchtap", howto);
-
-    function aboutgame() {
-        fp.fadeOut(250).
-            queue(function() {
-                fp.hide();
-                about();
-                $(this).dequeue();
-            });
-        return false;
-    };
-    
-    $("#about").click(aboutgame);
-    $("#about").on("touchtap", aboutgame);
-
-    function start() {
-        fp.fadeOut(250).
-            queue(function() {
-                fp.hide();
-                startGame();
-                $(this).dequeue();
-            });
-        return false;
+class Game {
+    constructor() {
+        this.grid = new Grid();
+        this.fp = $("#fp-container");
+        this.main = $("#main-container");
+        this.helpContainer = $("#help-container");
+        this.aboutContainer = $("#about-container");
+        this.board = $("#board");
+        this.setupEvents();
     }
 
-    $("#hard").click(start);
-    $("#hard").on("touchtap", start);
+    setupEvents() {
+        var game = this;
 
-    document.location.hash = "fp";
+        // Frontpage
+        function howto() {
+            game.leaveFrontPage(function() {
+                game.help();
+            });
+            return false;
+        }; 
+        $("#howto").click(howto);
+        $("#howto").on("touchtap", howto);
+
+        function about() {
+            game.leaveFrontPage(function() {
+                game.about();
+            });
+            return false;
+        };        
+        $("#about").click(about);
+        $("#about").on("touchtap", about);
+
+        function play() {
+            game.leaveFrontPage(function() {
+                game.startGame();
+            });
+            return false;
+        }
+        $("#hard").click(play);
+        $("#hard").on("touchtap", play);
+
+        // Help
+        function back() {
+            game.back();
+            return false;
+        }
+        $("#back-help").click(back);
+        $("#back-help").on("touchtap", back);    
+
+        // About
+        $("#back-about").click(back);
+        $("#back-about").on("touchtap", back);
+
+        // Game
+        var grid = this.grid;
+        var board = this.board;
+
+        board.mousedown(grid.makeStartDrag());
+        board.mouseup(grid.makeStopDrag());
+        board.mousemove(grid.makePreviewDrag());
+        board.mouseleave(grid.makeCancelDrag());
+
+        board.on('touchstart', grid.makeStartDragTouch());
+        board.on('touchend', grid.makeStopDragTouch());
+        board.on('touchmove', grid.makePreviewDragTouch());
+        board.on('touchleave', grid.makeCancelDrag());
+        board.on('touchcancel', grid.makeCancelDrag());
+
+        $("#reset").click(function() { grid.reset(board) });
+        $("#reset").on("touchtap", function() { grid.reset(board) });
+
+        $("#back").click(back);
+        $("#back").on("touchtap", back);
+    }
+
+    startGame() {
+        var game = this;
+
+        this.main.fadeIn(250);
+        this.current = this.main;
+        document.location.hash = "game";
+
+        var grid = this.grid;
+        var board = this.board;
+        
+        var size = grid.load([
+            "   .2    ",
+            "   .  5. ",
+            "    2.   ",
+            "    .    ",
+            "    2.4  ",
+            "   ..4  4",
+            "  .2  . 3",
+            "   . 3.  ",
+            "   2 4   ",
+            "  5. .2  ",
+        ]);
+
+        board.empty();
+        grid.eachLine(function (line) {
+            board.append(line.elem);
+        });
+        grid.eachCell(function (cell) {
+            board.append(cell.elem);
+            cell.elem.text(cell.value);
+        });
+
+        var width = cellSize * size.width + 6;
+        var height = cellSize * size.height + 6;
+        board.css("width", width);
+        board.css("height", height);
+
+        grid.updateStyles();
+
+        function resize() {
+            var scale =
+                Math.min(Math.min(($(window).innerHeight() - 32 - 128) / height,
+                                  ($(window).innerWidth() - 32) / width),
+                         2);
+            var bc = $("#board-container");
+            bc.css("width", board.width() * scale);
+            bc.css("height", board.height() * scale);
+            bc.css("left", (game.main.width() - bc.width()) / 2);
+            game.main.css("left", ($(window).innerWidth() - game.main.width()) / 2);
+
+            board.css("transform", "scale(" + scale + ")");
+            board.css("transform-origin", "0 0");
+        }
+        resize();
+        $(window).resize(resize);
+    }
+
+    help() {
+        this.helpContainer.fadeIn(250);
+        this.current = this.helpContainer;
+        document.location.hash = "help";
+    }
+
+    about() {
+        $(this.aboutContainer).show();
+        this.current = this.aboutContainer;
+        document.location.hash = "about";
+    }
+
+    back() {
+        var game = this;
+        game.current.hide();
+        game.frontPage();
+    }
+
+    frontPage() {
+        document.location.hash = "fp";
+        this.fp.fadeIn(250);
+        this.current = this.fp;
+    }
+
+    leaveFrontPage(cb) {
+        this.fp.hide();
+        cb();
+    }    
 }
 
 function preventDefault(e){
@@ -614,6 +629,8 @@ function preventDefault(e){
 }
 
 function init() {
+    var game = new Game();
+
     var hash = document.location.hash;
     $("body").mousedown(function() { return false });
 
@@ -623,12 +640,12 @@ function init() {
                                    { passive: false });
 
     if (hash == "#game") {
-        startGame();
+        game.startGame();
     } else if (hash == "#help") {
-        help();
+        game.help();
     } else if (hash == "#about") {
-        about();
+        game.about();
     } else {
-        frontPage();
+        game.frontPage();
     }
 }

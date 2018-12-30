@@ -3,11 +3,18 @@
     src: url('Coiny-Regular.ttf');
 }
 
+* {
+    touch-action: none;
+    user-select: none;
+}
+
 body {
     height: 100%;
     overflow: hidden;
-    touch-action: none;
-    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-text-size-adjust: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
 }
 
 div#main-container {
@@ -90,6 +97,7 @@ div.button {
     box-shadow: 5px 5px 0px 0px #066; 
     font-family: 'coiny';
     margin-top: 10px;
+    -webkit-tap-highlight-color: #0aa;
 }
 
 div.separator {
@@ -113,30 +121,6 @@ div.playgrid div {
     font-family: 'coiny';
     font-size: 40px;
     margin: 0px;
-}
-
-div.playgrid div.left-set {
-    border-top-left-radius: 0px;
-    border-bottom-left-radius: 0px;
-    margin-left: 0px;
-}
-
-div.playgrid div.right-set {
-    border-top-right-radius: 0px;
-    border-bottom-right-radius: 0px;
-    margin-right: 0px;
-}
-
-div.playgrid div.top-set {
-    border-top-left-radius: 0px;
-    border-top-right-radius: 0px;
-    margin-top: 0px;
-}
-
-div.playgrid div.bottom-set {
-    border-bottom-left-radius: 0px;
-    border-bottom-right-radius: 0px;
-    margin-bottom: 0px;
 }
 
 #board div.line {
