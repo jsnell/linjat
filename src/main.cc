@@ -435,63 +435,6 @@ private:
         return ret;
     }
 
-    // Minimum coverage property:
-    //
-    //  3
-    //  X2Z
-    //   Y4
-    //
-    // 2 has to cover Y or Z, so 3 must cover X.
-    //
-    // There exist a line L1, which can cover three forced squares.
-    void update_xxx() {
-        for (int piece = 0; piece < N; ++piece) {
-            int size = hints_[piece].second;
-            std::vector<int> covered;
-            Mask m = 0;
-            for (int at = 0; at < W * H; ++at) {
-                if (!forced_[at] || fixed_[at] ||
-                    possible_count(at) != 2)
-                    continue;
-                if (!(possible_[at] & piece_mask(piece)))
-                    continue;
-                covered.push_back(at);
-                m |= possible_[at];
-            }
-            if (__builtin_popcountl(m) < 3 ||
-                covered.size() < 3)
-                continue;
-            // Find triplets of squares where:
-            // - All can be covered by our candidate piece.
-            // - All can be covered by exactly two pieces.
-            // - No two can be covered by the same piece at the
-            //   same time. (Think it's enough to just check the
-            //   candidate piece).
-            // - Two can separately be covered by some other piece.
-            // - If that happens, the third square can't be covered
-            //   by the candidate.
-            for (int i = 0; i < covered.size(); ++i) {
-                for (int j = i + 1; j < covered.size(); ++j) {
-                    for (int k = j + 1; k < covered.size(); ++k) {
-                        int ai = covered[i], aj = covered[j], ak = covered[k];
-                        if (distance(ai, aj) <= size ||
-                            distance(ai, ak) <= size ||
-                            distance(aj, ak) <= size)
-                            continue;
-                        Mask pi = possible_[ai], pj = possible_[aj],
-                            pk = possible_[ak];
-                        if ((pi & pj) != piece_mask(piece))
-                            possible_[ak] &= ~piece_mask(piece);
-                        if ((pi & pk) != piece_mask(piece))
-                            possible_[aj] &= ~piece_mask(piece);
-                        if ((pj & pk) != piece_mask(piece))
-                            possible_[ai] &= ~piece_mask(piece);
-                    }
-                }
-            }
-        }
-    }
-
     //      Y   5
     //    X 4   Z
     //

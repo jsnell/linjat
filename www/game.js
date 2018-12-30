@@ -491,8 +491,6 @@ function startGame() {
 
     grid.updateStyles();
 
-    $("body").mousedown(function() { return false });
-
     function resize() {
         var scale =
             Math.min(Math.min(($(window).innerHeight() - 32 - 128) / height,
@@ -522,6 +520,7 @@ function startGame() {
                 frontPage();
                 $(this).dequeue();
             });
+        return false;
     }
     $("#back").click(back);
     $("#back").on("touchtap", back);    
@@ -540,6 +539,7 @@ function help() {
                 frontPage();
                 $(this).dequeue();
             });
+        return false;
     }
     $("#back-help").click(back);
     $("#back-help").on("touchtap", back);    
@@ -556,6 +556,7 @@ function about() {
                 frontPage();
                 $(this).dequeue();
             });
+        return false;
     }
     $("#back-about").click(back);
     $("#back-about").on("touchtap", back);    
@@ -573,6 +574,7 @@ function frontPage() {
                 help();
                 $(this).dequeue();
             });
+        return false;
     };
     
     $("#howto").click(howto);
@@ -585,6 +587,7 @@ function frontPage() {
                 about();
                 $(this).dequeue();
             });
+        return false;
     };
     
     $("#about").click(aboutgame);
@@ -597,6 +600,7 @@ function frontPage() {
                 startGame();
                 $(this).dequeue();
             });
+        return false;
     }
 
     $("#hard").click(start);
@@ -605,8 +609,19 @@ function frontPage() {
     document.location.hash = "fp";
 }
 
+function preventDefault(e){
+    e.preventDefault();
+}
+
 function init() {
     var hash = document.location.hash;
+    $("body").mousedown(function() { return false });
+
+    // Fucking iOS Safari.
+    $(document).on("gesturestart", preventDefault);
+    document.body.addEventListener('touchmove', preventDefault,
+                                   { passive: false });
+
     if (hash == "#game") {
         startGame();
     } else if (hash == "#help") {
