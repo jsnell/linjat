@@ -449,17 +449,17 @@ class Grid {
 
 function startGame() {
     var grid = new Grid();
-    var size = grid.load([
- "    .  4 ",
-"   .     ",
-"   35 .. ",
-"   .     ",
+   var size = grid.load([
+"   .2    ",
+"   .  5. ",
+"    2.   ",
 "    .    ",
-"         ",
-"    3.5  ",
-"         ",
-"    .3.  ",
-"         ",
+"    2.4  ",
+"   ..4  4",
+"  .2  . 3",
+"   . 3.  ",
+"   2 4   ",
+"  5. .2  ",
     ]);
     var board = $("#board");
     grid.eachLine(function (line) {

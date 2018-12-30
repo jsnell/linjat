@@ -10,7 +10,7 @@
 #include <vector>
 
 class Game {
-    static const int W = 10, H = 10, N = 6;
+    static const int W = 10, H = 10, N = 14;
 
 public:
     using Hint = std::pair<uint16_t, uint16_t>;
@@ -146,7 +146,7 @@ public:
             update_dependent();
         }
         if (opt_.xxx_) {
-            update_xxx();
+            update_yyy();
         }
     }
 
@@ -486,6 +486,59 @@ private:
                             possible_[aj] &= ~piece_mask(piece);
                         if ((pj & pk) != piece_mask(piece))
                             possible_[ai] &= ~piece_mask(piece);
+                    }
+                }
+            }
+        }
+    }
+
+    //      Y   5
+    //    X 4   Z
+    //
+    // 4 needs to cover either Y or Z, so can't cover X.
+    void update_yyy() {
+        for (int piece = 0; piece < N; ++piece) {
+            int size = hints_[piece].second;
+            int at = hints_[piece].first;
+            std::vector<int> covered;
+            for (int at = 0; at < W * H; ++at) {
+                if (!forced_[at] || fixed_[at] ||
+                    possible_count(at) != 2)
+                    continue;
+                if (!(possible_[at] & piece_mask(piece)))
+                    continue;
+                covered.push_back(at);
+            }
+            // Find pairs of squares where:
+            // - Both can be covered by the candidate and one other
+            //   piece (the same in both cases).
+            // - The candidate piece can't cover both squares at the same
+            //   time. (That will implicitly mean that the other piece
+            //   can't do it either).
+            for (int i = 0; i < covered.size(); ++i) {
+                for (int j = i + 1; j < covered.size(); ++j) {
+                    int ai = covered[i], aj = covered[j];
+                    if (distance(ai, aj) <= size)
+                        continue;
+                    Mask pi = possible_[ai], pj = possible_[aj];
+                    if (pi != pj)
+                        continue;
+                    // Remove any orientations of the piece that
+                    // don't cover at least one of the two squares.
+                    int valid_o = valid_orientation_[piece];
+                    for (int o = 0; o < size * 2; ++o) {
+                        if (valid_o & (1 << o)) {
+                            int offset = (size - 1) - (o >> 1);
+                            int step = ((o & 1) ? W : 1);
+                            bool no_candidate =
+                                do_squares(size, at + offset * -step, step,
+                                           [&] (int at) {
+                                               return at != ai && at != aj;
+                                           });
+                            if (no_candidate) {
+                                valid_orientation_[piece] &= ~(1 << o);
+                            }
+                        }
                     }
                 }
             }
