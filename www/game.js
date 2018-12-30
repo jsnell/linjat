@@ -308,6 +308,7 @@ class Grid {
     rowColumnFromMouseEventWrapper(fun) {
         var grid = this;
         return function(event) {
+            event.preventDefault();
             var elem = $(document.elementFromPoint(event.pageX,
                                                    event.pageY));
             var cell = elem.data('cell');
@@ -323,6 +324,7 @@ class Grid {
         var grid = this;
         return this.rowColumnFromMouseEventWrapper(function(r, c) {
             grid.startDrag(r, c)
+            return false;
         });
     }
 
@@ -353,6 +355,7 @@ class Grid {
     rowColumnFromTouchEventWrapper(fun) {
         var grid = this;
         return function(event) {
+            event.preventDefault();
             var touch = event.changedTouches[0];
             var elem = $(document.elementFromPoint(touch.pageX,
                                                    touch.pageY));
@@ -483,7 +486,6 @@ class Game {
             return false;
         }; 
         $("#howto").click(howto);
-        $("#howto").on("touchtap", howto);
 
         function about() {
             game.leaveFrontPage(function() {
@@ -492,7 +494,6 @@ class Game {
             return false;
         };        
         $("#about").click(about);
-        $("#about").on("touchtap", about);
 
         function play() {
             game.leaveFrontPage(function() {
@@ -500,8 +501,9 @@ class Game {
             });
             return false;
         }
+        $("#easy").click(play);
+        $("#medium").click(play);
         $("#hard").click(play);
-        $("#hard").on("touchtap", play);
 
         // Help
         function back() {
@@ -509,11 +511,9 @@ class Game {
             return false;
         }
         $("#back-help").click(back);
-        $("#back-help").on("touchtap", back);    
 
         // About
         $("#back-about").click(back);
-        $("#back-about").on("touchtap", back);
 
         // Game
         var grid = this.grid;
@@ -531,10 +531,8 @@ class Game {
         board.on('touchcancel', grid.makeCancelDrag());
 
         $("#reset").click(function() { grid.reset(board) });
-        $("#reset").on("touchtap", function() { grid.reset(board) });
-
+        $("#done").click(function() { return false; });
         $("#back").click(back);
-        $("#back").on("touchtap", back);
     }
 
     startGame() {
@@ -636,6 +634,16 @@ function init() {
 
     // Fucking iOS Safari.
     $(document).on("gesturestart", preventDefault);
+    document.addEventListener(
+        'touchstart',
+        function() {
+            var touch = event.changedTouches[0];
+            var elem = $(document.elementFromPoint(touch.pageX,
+                                                   touch.pageY));
+            if (!$(elem).hasClass("button"))
+                event.preventDefault();
+        },
+        { passive: false });
     document.body.addEventListener('touchmove', preventDefault,
                                    { passive: false });
 
