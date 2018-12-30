@@ -462,6 +462,10 @@ class Grid {
         });
         board.fadeIn(250);
     }
+
+    check() {
+        return true;
+    }
 }
 
 class Game {
@@ -532,7 +536,13 @@ class Game {
         board.on('touchcancel', grid.makeCancelDrag());
 
         $("#reset").click(function() { grid.reset(board) });
-        $("#done").click(function() { return false; });
+        $("#done").click(function() {
+            if (game.grid.check()) {
+                game.startGame(game.gameId + 1);
+            }
+            return false;
+        });
+
         $("#back").click(back);
     }
 
@@ -541,12 +551,13 @@ class Game {
 
         this.main.show();
         this.current = this.main;
-        document.location.hash = "game";
-
         var grid = this.grid;
         var board = this.board;
         
         var size = grid.load(game.games[gameId].puzzle);
+
+        game.gameId = gameId;
+        document.location.hash = "game." + gameId;
 
         board.empty();
         grid.eachLine(function (line) {
@@ -580,8 +591,6 @@ class Game {
         }
         resize();
         $(window).resize(resize);
-
-        document.location.hash = "game." + gameId;
     }
 
     help() {
@@ -641,7 +650,7 @@ function initUI(games) {
 
     if (hash.startsWith("#game.")) {
         var gameid = hash.replace("#game.", "");
-        game.startGame(gameid);
+        game.startGame(parseInt(gameid));
     } else if (hash == "#help") {
         game.help();
     } else if (hash == "#about") {
