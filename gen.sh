@@ -1,3 +1,5 @@
+#!/bin/bash
+
 mkdir -p puzzledb
 
 gen() {
@@ -11,7 +13,7 @@ gen() {
         echo Generating $F
         MAP_HEIGHT=$H MAP_WIDTH=$W PIECES=$P cmake .;
         make && \
-            bin/mklinjat 98098 $N > puzzledb/tmp && \
+            (seq 90210 90219 | parallel --will-cite --line-buffer bin/mklinjat --puzzle_count=$(($N/10)) --seed={} $FL) > puzzledb/tmp && \
             mv puzzledb/tmp $F
     fi
 }
