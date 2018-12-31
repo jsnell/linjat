@@ -613,7 +613,11 @@ class Game {
         });
         grid.eachCell(function (cell) {
             board.append(cell.elem);
-            cell.elem.text(cell.value);
+            if (cell.value == '.') {
+                cell.elem.html("&middot;");
+            } else {
+                cell.elem.text(cell.value);
+            }
         });
 
         var width = cellSize * size.width + 6;

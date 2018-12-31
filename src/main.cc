@@ -7,11 +7,14 @@
 #include <cstring>
 #include <functional>
 #include <map>
+#include <set>
 #include <vector>
+
+using std::string;
 
 class Game {
 public:
-    static const int W = 8, H = 10, N = 14;
+    static const int W = 8, H = 10, N = 15;
 
     using Hint = std::pair<uint16_t, uint16_t>;
     using Mask = uint64_t;
@@ -167,6 +170,12 @@ public:
         return count;
     }
 
+    void reset_forced() {
+        for (int i = 0; i < W * H; ++i) {
+            forced_[i] = false;
+        }
+    }
+
     bool force_one_square() {
         int best_at = -1;
         int best_score = -1;
@@ -213,6 +222,39 @@ public:
         }
 
         return true;
+    }
+
+    void mutate() {
+        int piece = rand() % Game::N;
+        int at = hints_[piece].first;
+        int size = hints_[piece].second;
+
+        switch (rand() % 3) {
+        case 0:
+            if (size > 1)
+                hints_[piece].second--;
+            break;
+        case 1:
+            if (size < 8)
+                hints_[piece].second++;
+            break;
+        case 2:
+            fixed_[at] = 0;
+            while (1) {
+                int at = random() % (W * H);
+                if (!fixed_[at] && !border_[at]) {
+                    hints_[piece].first = at;
+                    fixed_[at] = piece_mask(piece);
+                    break;
+                }
+            }
+        default:
+            break;
+        }
+
+        reset_hints();
+        reset_possible();
+        orig_possible_ = possible_;
     }
 
     Options opt_;
@@ -517,121 +559,201 @@ private:
     bool border_[H * W] = { 0 };
 };
 
-int main(int argc, char** argv) {
-    assert(argc == 2);
-    srandom(atoi(argv[1]));
-    for (int j = 0; j < 1000000; ++j) {
-        Game game;
-        for (int i = 0; i < 100; ++i) {
-            game.reset_possible();
-            // game.print_possible();
-            // printf("\n-----------------------------------------------\n\n");
-            if (!game.reset_fixed()) {
-                if (!game.force_one_square()) {
-                    break;
-                }
+Game add_forced_squares(Game game) {
+    while (1) {
+        game.reset_possible();
+
+        if (!game.reset_fixed()) {
+            if (!game.force_one_square()) {
+                break;
             }
+        }
+        if (game.impossible()) {
+            break;
+        }
+    }
+
+    return game;
+}
+
+// Find a game with the given parameters that can be solved.
+Game create_candidate_game() {
+    for (int i = 0; i < 100000; ++i) {
+        Game game;
+        game = add_forced_squares(game);
+
+        if (game.solved())
+            return game;
+    }
+
+    assert(false);
+}
+
+struct SolutionMetaData {
+    bool solved = false;
+    int depth = 0;
+    int max_width = 0;
+
+    void print(const string& prefix, const string& suffix) {
+        printf("%s", prefix.c_str());
+
+        printf("\"solved\": %d, ", solved);
+        printf("\"depth\": %d, ", depth);
+        printf("\"max_width\": %d", max_width);
+
+        printf("%s", suffix.c_str());
+    }
+};
+
+SolutionMetaData solve_game_with_options(Game game,
+                                         Game::Options opt) {
+    SolutionMetaData ret;
+
+    game.reset_hints();
+    game.opt_ = opt;
+
+    for (int i = 0; ; ++i) {
+        game.reset_possible();
+
+        int width = game.reset_fixed();
+        if (!width) {
+            break;
+        }
+        ret.max_width = std::max(ret.max_width, width);
+
+        if (game.solved()) {
+            ret.solved = true;
+            ret.depth = i;
+            break;
         }
 
         if (game.impossible()) {
-            continue;
-        }
-
-        if (!game.solved()) {
-            continue;
-        }
-
-        int solve_xxx = 0, solve_dep = 0, solve_dep_forced = 0, solve_nodep = 0;
-        game.reset_hints();
-        std::vector<int> progress;
-        for (int i = 0; i < 100; ++i) {
-            game.reset_possible();
-            int count = game.reset_fixed();
-            progress.push_back(count);
-            if (!count) {
-                if (game.solved())
-                    solve_xxx = i;
-                break;
-            }
-        }
-
-        game.reset_hints();
-        game.opt_.xxx_ = false;
-        for (int i = 0; i < 100; ++i) {
-            game.reset_possible();
-            int count = game.reset_fixed();
-            if (!count) {
-                if (game.solved())
-                    solve_dep = i;
-                break;
-            }
-        }
-
-        game.reset_hints();
-        game.opt_.dep_non_forced_ = false;
-        for (int i = 0; i < 100; ++i) {
-            game.reset_possible();
-            if (!game.reset_fixed()) {
-                // if (i >= 12) {
-                //     printf("dep rounds: %d\n", i);
-                //     game.print_puzzle();
-                // }
-                if (game.solved())
-                    solve_dep_forced = i;
-                break;
-            }
-        }
-
-        game.reset_hints();
-        game.opt_.dep_ = false;
-        for (int i = 0; i < 100; ++i) {
-            game.reset_possible();
-            if (!game.reset_fixed()) {
-                // if (i >= 12) {
-                //     printf("nodep rounds: %d [%d]\n", i, solve_dep);
-                //     game.print_puzzle();
-                // }
-                if (game.solved())
-                    solve_nodep = i;
-                break;
-            }
-        }
-
-        if (solve_xxx && !solve_dep) {
-            printf("{"
-                   "\"rows\": %d, \"cols\": %d,"
-                   "\"xxx\": %d, \"dep\": %d,"
-                   "\"dep_forced\": %d, \"nodep\": %d, "
-                   "\"width\": [",
-                   Game::H,
-                   Game::W,
-                   solve_xxx,
-                   solve_dep,
-                   solve_dep_forced,
-                   solve_nodep);
-            for (int i = 0; i < progress.size(); ++i) {
-                auto count = progress[i];
-                printf("%s%d", (i ? ", " : ""), count);
-            }
-            printf("], \"puzzle\": [");
-            game.print_puzzle(true);
-            printf("]}, \n");
-
-            // game.reset_hints();
-            // game.opt_.dep_ = true;
-            // for (int i = 0; i < 100; ++i) {
-            //     game.reset_possible();
-            //     game.print_possible();
-            //     printf("\n-----------------------------------------------\n\n");
-            //     if (!game.reset_fixed()) {
-            //         // if (i >= 12) {
-            //         //     printf("nodep rounds: %d\n", i);
-            //         //     game.print_puzzle();
-            //         // }
-            //         break;
-            //     }
-            // }
+            break;
         }
     }
-    printf("{}");
+
+    return ret;
+}
+
+struct Classification {
+    SolutionMetaData all;
+    SolutionMetaData no_dep;
+    SolutionMetaData no_xxx;
+    SolutionMetaData basic;
+
+    void print(const string& prefix, const string& suffix) {
+        printf("%s", prefix.c_str());
+
+        all.print("\"all\": {", "}, ");
+        no_dep.print("\"no_dep\": {", "}, ");
+        no_xxx.print("\"no_xxx\": {", "}, ");
+        basic.print("\"basic\": {", "}");
+        printf("%s", suffix.c_str());
+    }
+};
+
+Classification classify_game(Game game) {
+    Classification ret;
+
+    Game::Options all;
+    ret.all = solve_game_with_options(game, all);
+
+    Game::Options no_dep;
+    no_dep.dep_ = false;
+    ret.no_dep = solve_game_with_options(game, no_dep);
+
+    Game::Options no_xxx;
+    no_xxx.xxx_ = false;
+    ret.no_xxx = solve_game_with_options(game, no_xxx);
+
+    Game::Options basic;
+    basic.dep_ = basic.dep_non_forced_ = basic.xxx_ = false;
+    ret.basic = solve_game_with_options(game, basic);
+
+    return ret;
+}
+
+Game mutate(Game game) {
+    game.reset_fixed();
+    game.reset_forced();
+    game.mutate();
+
+    return game;
+}
+
+struct OptimizationResult {
+    OptimizationResult(Game game, Classification cls)
+        : game(game), cls(cls) {
+    }
+
+    Game game;
+    Classification cls;
+};
+
+Game minimize_width(Game game) {
+    struct Cmp {
+        bool operator() (const OptimizationResult& a,
+                         const OptimizationResult& b) {
+            return a.cls.all.max_width < b.cls.all.max_width;
+        }
+    };
+
+    std::vector<OptimizationResult> res;
+    res.emplace_back(game, classify_game(game));
+
+    for (int i = 0; i < 10000; ++i) {
+        auto base = res[rand() % res.size()];
+        Game opt = mutate(base.game);
+        opt = add_forced_squares(opt);
+        Classification opt_cls = classify_game(opt);
+        if (opt_cls.all.solved &&
+            opt_cls.all.max_width < base.cls.all.max_width) {
+            res.emplace_back(opt, opt_cls);
+            sort(res.begin(), res.end(), Cmp());
+            if (res.size() > 10) {
+                res.pop_back();
+            }
+        }
+    }
+
+    return res[0].game;
+}
+
+Game optimize_game(Game game) {
+    Classification cls = classify_game(game);
+
+    Game opt = minimize_width(game);
+    Classification opt_cls = classify_game(opt);
+
+    fprintf(stderr, "%d/%d -> %d/%d\n",
+            cls.all.max_width,
+            cls.all.depth,
+            opt_cls.all.max_width,
+            opt_cls.all.depth);
+
+    return opt;
+}
+
+int main(int argc, char** argv) {
+    assert(argc == 2);
+    srandom(atoi(argv[1]));
+    bool print_sep = false;
+    for (int j = 0; j < 30; ++j) {
+        Game game = create_candidate_game();
+        Classification cls = classify_game(game);
+        if (!cls.all.solved) {
+            fprintf(stderr, "wtf?\n");
+            // game.print_puzzle(false);
+            continue;
+        }
+
+        Game opt = optimize_game(game);
+        cls = classify_game(opt);
+
+        printf("%s{ \"puzzle\": [", print_sep ? ",\n" : "");
+        game.print_puzzle(true);
+        cls.print("], \"classification\": {", "}");
+        printf("}");
+        print_sep = true;
+    }
 }
