@@ -5,7 +5,7 @@ use JSON;
 use List::Util qw(shuffle);
 
 sub build {
-    my ($h, $w, $accept) = @_;
+    my ($h, $w, $accept, $score) = @_;
     my @files = glob("puzzledb/h=${h}_w=${w}_*");
     my @records = ();
     
@@ -22,7 +22,8 @@ sub build {
         next if !$accept->($record);
         $record->{score} =
             (10 - $record->{classification}{all}{max_width}) + 
-            $record->{classification}{all}{depth};
+            $record->{classification}{all}{depth} +
+            (defined $score ? $score->($record) : 0);
     }
 
     my @output = ();
@@ -34,6 +35,8 @@ sub build {
         print STDERR join " ", $record->{score},
             $record->{classification}{all}{max_width},
             $record->{classification}{all}{depth},
+            $record->{classification}{no_dep}{solved},
+            $record->{classification}{no_square}{solved},
             $record->{file};
         last if @output >= 99;
     }
@@ -41,8 +44,21 @@ sub build {
     return [shuffle @output];
 }
 
-# Easy mode, must be solvable with just the rote rule.
 print encode_json {
-    easy => build 10, 7, sub { my $r = shift; $r->{classification}{basic}{solved} },
+    # Easy mode, must be solvable with just the rote rule.
+    easy => (build 10, 7, sub { my $r = shift; $r->{classification}{basic}{solved} }),
+    # Medium. Deduction based on corners of a rectangle, with
+    # one pair of opposite corners having numbers, the other pair
+    # having dots.
+    medium => (build 11, 8, sub { my $r = shift; !$r->{classification}{no_square}{solved} && $r->{classification}{no_dep}{solved}}),
+    hard => (build 13, 9, sub {
+        my $r = shift;
+        # !$r->{classification}{no_dep}{solved}
+        1
+             }, sub {
+                 my $r = shift;
+                 $r->{classification}{no_dep}{solved} * -10 + $r->{classification}{no_square}{solved} * -5
+             }),
 };
+
 

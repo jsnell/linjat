@@ -25,10 +25,13 @@ gen 10 7 18 100
 gen 10 7 19 100
 gen 10 7 20 100
 
-gen 11 8 20 100 "--disallow_basic"
-gen 11 8 21 100 "--disallow_basic"
-gen 11 8 22 100 "--disallow_basic"
-gen 11 8 23 100 "--disallow_basic"
-gen 11 8 24 100 "--disallow_basic"
-gen 11 8 25 100 "--disallow_basic"
+gen 11 8 19 200 "--disallow_basic"
+gen 11 8 20 200 "--disallow_basic"
+gen 11 8 21 200 "--disallow_basic"
+gen 11 8 22 200 "--disallow_basic"
+
+gen 13 9 23 200 "--disallow_basic --disallow_only_square"
+gen 13 9 24 200 "--disallow_basic --disallow_only_square"
+gen 13 9 25 200 "--disallow_basic --disallow_only_square"
+gen 13 9 26 200 "--disallow_basic --disallow_only_square"
 

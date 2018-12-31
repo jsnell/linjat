@@ -30,6 +30,10 @@ DEFINE_bool(disallow_basic, false,
             "If set, never generate puzzles that require only "
             "'basic' deduction.");
 
+DEFINE_bool(disallow_only_square, false,
+            "If set, generate only puzzles that require 'dep' "
+            "deduction.");
+
 class Game {
 public:
     static const int W = MAP_WIDTH + 1, H = MAP_HEIGHT, N = PIECES;
@@ -42,7 +46,7 @@ public:
     struct Options {
         bool dep_ = true;
         bool dep_non_forced_ = true;
-        bool xxx_ = true;
+        bool square_ = true;
     };
 
     Game() : Game(Options()) {
@@ -175,8 +179,8 @@ public:
         if (opt_.dep_) {
             update_dependent();
         }
-        if (opt_.xxx_) {
-            update_yyy();
+        if (opt_.square_) {
+            update_square();
         }
     }
 
@@ -243,32 +247,35 @@ public:
     }
 
     void mutate() {
-        int piece = rand() % Game::N;
-        int at = hints_[piece].first;
-        int size = hints_[piece].second;
+        do {
+            int piece = rand() % Game::N;
+            int at = hints_[piece].first;
+            int size = hints_[piece].second;
 
-        switch (rand() % 3) {
-        case 0:
-            if (size > 1)
-                hints_[piece].second--;
-            break;
-        case 1:
-            if (size < 8)
-                hints_[piece].second++;
-            break;
-        case 2:
-            fixed_[at] = 0;
-            while (1) {
-                int at = random() % (W * H);
-                if (!fixed_[at] && !border_[at]) {
-                    hints_[piece].first = at;
-                    fixed_[at] = piece_mask(piece);
-                    break;
+            switch (rand() % 3) {
+            case 0:
+                if (size > 1)
+                    hints_[piece].second--;
+                break;
+            case 1:
+                if (size < 8)
+                    hints_[piece].second++;
+                break;
+            case 2:
+                fixed_[at] = 0;
+                while (1) {
+                    int at = random() % (W * H);
+                    if (!fixed_[at] && !border_[at]) {
+                        hints_[piece].first = at;
+                        fixed_[at] = piece_mask(piece);
+                        break;
+                    }
                 }
+                break;
+            default:
+                break;
             }
-        default:
-            break;
-        }
+        } while (rand() % 10 < 1);
 
         reset_hints();
         reset_possible();
@@ -508,7 +515,7 @@ private:
     //    X 4   Z
     //
     // 4 needs to cover either Y or Z, so can't cover X.
-    void update_yyy() {
+    void update_square() {
         for (int piece = 0; piece < N; ++piece) {
             int size = hints_[piece].second;
             int at = hints_[piece].first;
@@ -643,7 +650,7 @@ SolutionMetaData solve_game_with_options(Game game,
 struct Classification {
     SolutionMetaData all;
     SolutionMetaData no_dep;
-    SolutionMetaData no_xxx;
+    SolutionMetaData no_square;
     SolutionMetaData basic;
 
     void print(const string& prefix, const string& suffix) {
@@ -651,7 +658,7 @@ struct Classification {
 
         all.print("\"all\": {", "}, ");
         no_dep.print("\"no_dep\": {", "}, ");
-        no_xxx.print("\"no_xxx\": {", "}, ");
+        no_square.print("\"no_square\": {", "}, ");
         basic.print("\"basic\": {", "}");
         printf("%s", suffix.c_str());
     }
@@ -667,12 +674,12 @@ Classification classify_game(Game game) {
     no_dep.dep_ = false;
     ret.no_dep = solve_game_with_options(game, no_dep);
 
-    Game::Options no_xxx;
-    no_xxx.xxx_ = false;
-    ret.no_xxx = solve_game_with_options(game, no_xxx);
+    Game::Options no_square;
+    no_square.square_ = false;
+    ret.no_square = solve_game_with_options(game, no_square);
 
     Game::Options basic;
-    basic.dep_ = basic.dep_non_forced_ = basic.xxx_ = false;
+    basic.dep_ = basic.dep_non_forced_ = basic.square_ = false;
     ret.basic = solve_game_with_options(game, basic);
 
     return ret;
@@ -689,17 +696,25 @@ Game mutate(Game game) {
 struct OptimizationResult {
     OptimizationResult(Game game, Classification cls)
         : game(game), cls(cls) {
+        score = -(5 * cls.all.max_width);
+        score += cls.all.depth;
+        if (FLAGS_disallow_only_square) {
+            if (cls.all.solved && !cls.no_dep.solved) {
+                score += 1000;
+            }
+        }
     }
 
     Game game;
     Classification cls;
+    int score;
 };
 
 Game minimize_width(Game game) {
     struct Cmp {
         bool operator() (const OptimizationResult& a,
                          const OptimizationResult& b) {
-            return a.cls.all.max_width < b.cls.all.max_width;
+            return b.score < a.score;
         }
     };
 
@@ -710,14 +725,14 @@ Game minimize_width(Game game) {
         auto base = res[rand() % res.size()];
         Game opt = mutate(base.game);
         opt = add_forced_squares(opt);
-        Classification opt_cls = classify_game(opt);
+        OptimizationResult opt_res(opt, classify_game(opt));
 
-        if (FLAGS_disallow_basic && opt_cls.basic.solved) {
+        if (FLAGS_disallow_basic && opt_res.cls.basic.solved) {
             continue;
         }
-        if (opt_cls.all.solved &&
-            opt_cls.all.max_width < base.cls.all.max_width) {
-            res.emplace_back(opt, opt_cls);
+        if (opt_res.cls.all.solved &&
+            opt_res.cls.all.max_width < base.cls.all.max_width) {
+            res.push_back(opt_res);
             sort(res.begin(), res.end(), Cmp());
             if (res.size() > 10) {
                 res.pop_back();
@@ -734,11 +749,19 @@ Game optimize_game(Game game) {
     Game opt = minimize_width(game);
     Classification opt_cls = classify_game(opt);
 
-    fprintf(stderr, "%d/%d -> %d/%d\n",
+    fprintf(stderr, "%d/%d [%d/%d/%d/%d] -> %d/%d [%d/%d/%d/%d]\n",
             cls.all.max_width,
             cls.all.depth,
+            cls.all.solved,
+            cls.no_square.solved,
+            cls.no_dep.solved,
+            cls.basic.solved,
             opt_cls.all.max_width,
-            opt_cls.all.depth);
+            opt_cls.all.depth,
+            opt_cls.all.solved,
+            opt_cls.no_square.solved,
+            opt_cls.no_dep.solved,
+            opt_cls.basic.solved);
 
     return opt;
 }
@@ -746,19 +769,22 @@ Game optimize_game(Game game) {
 
 // Find a game with the given parameters that can be solved.
 Game create_candidate_game() {
-    for (int i = 0; i < 100000; ++i) {
+    for (int i = 0; i < 500000; ++i) {
         Game game;
         game = add_forced_squares(game);
 
         if (game.solved()) {
             Classification cls = classify_game(game);
             if (!cls.all.solved) {
-                fprintf(stderr, "wtf?\n");
                 continue;
             }
             if (FLAGS_disallow_basic && cls.basic.solved) {
                 continue;
             }
+            // if (FLAGS_disallow_only_square &&
+            //     cls.no_dep.solved) {
+            //     continue;
+            // }
             return game;
         }
     }
