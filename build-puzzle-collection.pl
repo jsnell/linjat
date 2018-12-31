@@ -45,6 +45,8 @@ sub build {
 }
 
 print encode_json {
+    # Like easy, but fewer pieces
+    basic => (build 9, 6, sub { my $r = shift; $r->{classification}{basic}{solved} }),
     # Easy mode, must be solvable with just the rote rule.
     easy => (build 10, 7, sub { my $r = shift; $r->{classification}{basic}{solved} }),
     # Medium. Deduction based on corners of a rectangle, with

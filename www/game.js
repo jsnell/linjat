@@ -571,6 +571,7 @@ class Game {
             });
             return false;
         }
+        $("#basic").click(function() { play("basic.1") });
         $("#easy").click(function() { play("easy.1") });
         $("#medium").click(function() { play("medium.1") });
         $("#hard").click(function() { play("hard.1") });
