@@ -46,14 +46,14 @@ sub build {
 
 print encode_json {
     # Like easy, but fewer pieces
-    basic => (build 9, 6, sub { my $r = shift; $r->{classification}{basic}{solved} }),
+    easy => (build 9, 6, sub { my $r = shift; $r->{classification}{basic}{solved} }),
     # Easy mode, must be solvable with just the rote rule.
-    easy => (build 10, 7, sub { my $r = shift; $r->{classification}{basic}{solved} }),
+    medium => (build 10, 7, sub { my $r = shift; $r->{classification}{basic}{solved} }),
     # Medium. Deduction based on corners of a rectangle, with
     # one pair of opposite corners having numbers, the other pair
     # having dots.
-    medium => (build 11, 8, sub { my $r = shift; !$r->{classification}{no_square}{solved} && $r->{classification}{no_dep}{solved}}),
-    hard => (build 13, 9, sub {
+    hard => (build 11, 8, sub { my $r = shift; !$r->{classification}{no_square}{solved} && $r->{classification}{no_dep}{solved}}),
+    expert => (build 13, 9, sub {
         my $r = shift;
         # !$r->{classification}{no_dep}{solved}
         1
