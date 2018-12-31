@@ -10,3 +10,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -O2 -g3 -Wall -Werror -Wno-si
 include_directories("src")
 add_executable(mklinjat
                src/main.cc)
+target_link_libraries(mklinjat gflags)
+             
+find_library(gflags libgflags)

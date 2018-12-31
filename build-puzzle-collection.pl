@@ -31,13 +31,14 @@ sub build {
 
     for my $record (@sorted) {
         push @output, { "puzzle" => $record->{puzzle} };
-        # print join " ", $record->{score},
-        #     $record->{classification}{all}{max_width},
-        #     $record->{classification}{all}{depth},
-        #     $record->{file};
+        print STDERR join " ", $record->{score},
+            $record->{classification}{all}{max_width},
+            $record->{classification}{all}{depth},
+            $record->{file};
+        last if @output >= 99;
     }
 
-    return [shuffle @output[0..99]];
+    return [shuffle @output];
 }
 
 # Easy mode, must be solvable with just the rote rule.

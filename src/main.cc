@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <cstring>
 #include <functional>
+#include <gflags/gflags.h>
 #include <map>
 #include <set>
 #include <vector>
@@ -21,6 +22,13 @@ using std::string;
 #if !defined(PIECES)
 #error "PIECES undefined"
 #endif
+
+DEFINE_int32(seed, 1, "RNG seed.");
+DEFINE_int32(puzzle_count, 100, "Number of puzzles to generate.");
+
+DEFINE_bool(disallow_basic, false,
+            "If set, never generate puzzles that require only "
+            "'basic' deduction.");
 
 class Game {
 public:
@@ -586,19 +594,6 @@ Game add_forced_squares(Game game) {
     return game;
 }
 
-// Find a game with the given parameters that can be solved.
-Game create_candidate_game() {
-    for (int i = 0; i < 100000; ++i) {
-        Game game;
-        game = add_forced_squares(game);
-
-        if (game.solved())
-            return game;
-    }
-
-    assert(false);
-}
-
 struct SolutionMetaData {
     bool solved = false;
     int depth = 0;
@@ -716,6 +711,10 @@ Game minimize_width(Game game) {
         Game opt = mutate(base.game);
         opt = add_forced_squares(opt);
         Classification opt_cls = classify_game(opt);
+
+        if (FLAGS_disallow_basic && opt_cls.basic.solved) {
+            continue;
+        }
         if (opt_cls.all.solved &&
             opt_cls.all.max_width < base.cls.all.max_width) {
             res.emplace_back(opt, opt_cls);
@@ -744,32 +743,41 @@ Game optimize_game(Game game) {
     return opt;
 }
 
-int main(int argc, char** argv) {
-    assert(argc == 2 || argc == 3);
-    srandom(atoi(argv[1]));
 
-    int n = 100;
-    if (argc == 3) {
-        n = atoi(argv[2]);
+// Find a game with the given parameters that can be solved.
+Game create_candidate_game() {
+    for (int i = 0; i < 100000; ++i) {
+        Game game;
+        game = add_forced_squares(game);
+
+        if (game.solved()) {
+            Classification cls = classify_game(game);
+            if (!cls.all.solved) {
+                fprintf(stderr, "wtf?\n");
+                continue;
+            }
+            if (FLAGS_disallow_basic && cls.basic.solved) {
+                continue;
+            }
+            return game;
+        }
     }
 
-    bool print_sep = false;
-    for (int j = 0; j < n; ++j) {
+    assert(false);
+}
+
+int main(int argc, char** argv) {
+    google::ParseCommandLineFlags(&argc, &argv, true);
+    srand(FLAGS_seed);
+
+    for (int j = 0; j < FLAGS_puzzle_count; ++j) {
         Game game = create_candidate_game();
-        Classification cls = classify_game(game);
-        if (!cls.all.solved) {
-            fprintf(stderr, "wtf?\n");
-            // game.print_puzzle(false);
-            continue;
-        }
-
         Game opt = optimize_game(game);
-        cls = classify_game(opt);
+        Classification cls = classify_game(opt);
 
-        printf("%s{ \"puzzle\": [", print_sep ? ",\n" : "");
+        printf("{ \"puzzle\": [");
         game.print_puzzle(true);
         cls.print("], \"classification\": {", "}");
-        printf("}");
-        print_sep = true;
+        printf("}\n");
     }
 }
