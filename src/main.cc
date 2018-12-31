@@ -12,9 +12,19 @@
 
 using std::string;
 
+#if !defined(MAP_WIDTH)
+#error "MAP_WIDTH undefined"
+#endif
+#if !defined(MAP_HEIGHT)
+#error "MAP_HEIGHT undefined"
+#endif
+#if !defined(PIECES)
+#error "PIECES undefined"
+#endif
+
 class Game {
 public:
-    static const int W = 8, H = 10, N = 15;
+    static const int W = MAP_WIDTH + 1, H = MAP_HEIGHT, N = PIECES;
 
     using Hint = std::pair<uint16_t, uint16_t>;
     using Mask = uint64_t;
