@@ -324,7 +324,7 @@ private:
         }
     }
 
-    bool update_fixed(int piece) {
+    int update_fixed(int piece) {
         Mask mask = piece_mask(piece);
         int piece_at = hints_[piece].first;
         int size = hints_[piece].second;
@@ -350,12 +350,12 @@ private:
             }
         }
 
-        bool updated = false;
+        int updated = 0;
         for (int at = 0; at < W * H; ++at) {
             if (!fixed_[at]) {
                 if ((count[at] == valid_count) ||
                     (forced_[at] && possible_[at] == mask)) {
-                    updated = true;
+                    updated = 1;
                     fixed_[at] = mask;
                     update_not_possible(at, mask, piece);
                 }
@@ -776,7 +776,7 @@ int main(int argc, char** argv) {
         Classification cls = classify_game(opt);
 
         printf("{ \"puzzle\": [");
-        game.print_puzzle(true);
+        opt.print_puzzle(true);
         cls.print("], \"classification\": {", "}");
         printf("}\n");
     }
