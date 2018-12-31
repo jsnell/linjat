@@ -514,6 +514,23 @@ class Grid {
     }
 }
 
+class GameId {
+    constructor(id) {
+        console.log(id);
+        var components = id.split('.');
+        this.level = components[0];
+        this.index = parseInt(components[1]);
+    }
+
+    next() {
+        return new GameId(this.level + "." + (this.index + 1));
+    }
+
+    str() {
+        return this.level + "." + this.index;
+    }
+}
+
 class Game {
     constructor(games) {
         this.games = games;
@@ -546,17 +563,17 @@ class Game {
         };        
         $("#about").click(about);
 
-        function play() {
+        function play(id) {
             game.leaveFrontPage(function() {
                 // TODO: Store solved puzzles in localstorage,
                 // jump to first unsolved.
-                game.startGame(1);
+                game.startGame(new GameId(id));
             });
             return false;
         }
-        $("#easy").click(play);
-        $("#medium").click(play);
-        $("#hard").click(play);
+        $("#easy").click(function() { play("easy.1") });
+        $("#medium").click(function() { play("medium.1") });
+        $("#hard").click(function() { play("hard.1") });
 
         // Help
         function back() {
@@ -586,7 +603,9 @@ class Game {
         $("#reset").click(function() { grid.reset(board) });
         $("#done").click(function() {
             if (game.grid.check()) {
-                game.startGame(game.gameId + 1);
+                console.log(game.gameId);
+                game.startGame(game.gameId.next());
+                console.log(game.gameId);
             }
             return false;
         });
@@ -597,15 +616,15 @@ class Game {
     startGame(gameId) {
         var game = this;
 
-        this.main.show();
         this.current = this.main;
         var grid = this.grid;
         var board = this.board;
-        
-        var size = grid.load(game.games[gameId].puzzle);
+    
+        var size = grid.load(
+            game.games[gameId.level][gameId.index - 1].puzzle);
 
         game.gameId = gameId;
-        document.location.hash = "game." + gameId;
+        document.location.hash = "game." + gameId.str();
 
         board.empty();
         grid.eachLine(function (line) {
@@ -642,7 +661,10 @@ class Game {
             board.css("transform-origin", "0 0");
         }
         resize();
+        $(window).off("resize");
         $(window).resize(resize);
+
+        this.main.show();
     }
 
     help() {
@@ -702,7 +724,7 @@ function initUI(games) {
 
     if (hash.startsWith("#game.")) {
         var gameid = hash.replace("#game.", "");
-        game.startGame(parseInt(gameid));
+        game.startGame(new GameId(gameid));
     } else if (hash == "#help") {
         game.help();
     } else if (hash == "#about") {
