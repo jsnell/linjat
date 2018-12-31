@@ -745,10 +745,16 @@ Game optimize_game(Game game) {
 }
 
 int main(int argc, char** argv) {
-    assert(argc == 2);
+    assert(argc == 2 || argc == 3);
     srandom(atoi(argv[1]));
+
+    int n = 100;
+    if (argc == 3) {
+        n = atoi(argv[2]);
+    }
+
     bool print_sep = false;
-    for (int j = 0; j < 30; ++j) {
+    for (int j = 0; j < n; ++j) {
         Game game = create_candidate_game();
         Classification cls = classify_game(game);
         if (!cls.all.solved) {
