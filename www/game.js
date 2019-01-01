@@ -563,18 +563,19 @@ class Game {
         };        
         $("#about").click(about);
 
-        function play(id) {
+        function play(level) {
             game.leaveFrontPage(function() {
+                var id = game.getStartLevel(level);
                 // TODO: Store solved puzzles in localstorage,
                 // jump to first unsolved.
-                game.startGame(new GameId(id));
+                game.startGame(new GameId(level + "." + id));
             });
             return false;
         }
-        $("#easy").click(function() { play("easy.1") });
-        $("#medium").click(function() { play("medium.1") });
-        $("#hard").click(function() { play("hard.1") });
-        $("#expert").click(function() { play("expert.1") });
+        $("#easy").click(function() { play("easy") });
+        $("#medium").click(function() { play("medium") });
+        $("#hard").click(function() { play("hard") });
+        $("#expert").click(function() { play("expert") });
 
         // Help
         function back() {
@@ -604,14 +605,36 @@ class Game {
         $("#reset").click(function() { grid.reset(board) });
         $("#done").click(function() {
             if (game.grid.check()) {
-                console.log(game.gameId);
+                game.incrementStartLevel(game.gameId);
                 game.startGame(game.gameId.next());
-                console.log(game.gameId);
             }
             return false;
         });
 
         $("#back").click(back);
+    }
+
+    incrementStartLevel(gameId) {
+        var storage = window.localStorage;
+        if (storage) {
+            var index = gameId.index + 1;
+            var stored = localStorage.getItem(gameId.level, index);
+            if (stored) {
+                index = Math.max(index, parseInt(stored));
+            }
+            localStorage.setItem(gameId.level, index);
+        }
+    }
+
+    getStartLevel(level) {
+        var storage = window.localStorage;
+        if (storage) {
+            var max = localStorage.getItem(level);
+            if (max) {
+                return parseInt(max);
+            }
+        }
+        return 1;
     }
 
     startGame(gameId) {
@@ -620,6 +643,22 @@ class Game {
         this.current = this.main;
         var grid = this.grid;
         var board = this.board;
+
+        if (!game.games[gameId.level]) {
+            console.log("unknown difficulty setting: ",
+                        gameId.level);
+            game.frontPage();
+            return;
+        }
+
+        if (gameId.index < 0 ||
+            gameId.index > game.games[gameId.level].length) {
+            console.log("level id out of range: ",
+                        gameId.index,
+                        game.games[gameId.level].length);
+            game.frontPage();
+            return;
+        }
     
         var size = grid.load(
             game.games[gameId.level][gameId.index - 1].puzzle);
@@ -651,7 +690,7 @@ class Game {
             var scale =
                 Math.min(Math.min(($(window).innerHeight() - 32 - 128) / height,
                                   ($(window).innerWidth() - 32) / width),
-                         2);
+                         2.5);
             var bc = $("#board-container");
             bc.css("width", board.width() * scale);
             bc.css("height", board.height() * scale);
@@ -742,7 +781,9 @@ function init() {
     }).done(function(response) {
         initUI(response);
     }).fail(function(err) {
+        $("#error-container.div").hide();
+        $("#error-loading-game-data").show();
+        $("#error-container").show();
         console.log("Couldn't load games", err);
-        // TODO: Show error message.
     });
 }
