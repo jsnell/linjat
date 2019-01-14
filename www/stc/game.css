@@ -1,6 +1,6 @@
 @font-face{ 
     font-family: 'coiny';
-    src: url('Coiny-Regular.ttf');
+    src: url('/stc/third-party/Coiny-Regular.ttf');
 }
 
 * {
