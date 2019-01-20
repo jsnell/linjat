@@ -67,6 +67,13 @@ h2 {
     text-align: center;
 }
 
+h3 {
+    margin-top: 0px;
+    font-size: 30px;
+    font-family: 'coiny';
+    text-align: center;
+}
+
 div.fp {
     width: 500px;
     text-align: center;

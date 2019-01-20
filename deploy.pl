@@ -75,6 +75,8 @@ sub deploy_stc {
     for my $f (qw(data/puzzles.json
                   stc/game.css
                   stc/game.js
+                  stc/linjat.png
+                  stc/linjat-big.png
                   stc/third-party/Coiny-Regular.ttf
                   stc/third-party/jquery-3.3.1.min.js)) {
         copy_with_mode 0444, "www/$f", "$target/$f";
