@@ -163,10 +163,11 @@ class Line {
     finishUpdate(fromR, fromC, r, c, lines) {
         var handles = this.findEffectiveHandles(fromR, fromC, r, c, lines);
         if (handles == null) {
-            return;
+            return false;
         }
         this.h1 = handles[0];
         this.h2 = handles[1];
+        return true;
     }
 
     reset() {
@@ -288,6 +289,7 @@ class Grid {
             line.dragLeftStartSquare = false;
             this.dragStart = [r, c];
         }
+        this.dragAxisSet = false;
     }
 
     previewDrag(r, c) {
@@ -396,8 +398,38 @@ class Grid {
 
     makePreviewDragTouch() {
         var grid = this;
+        var rowAxis;
         return this.rowColumnFromTouchEventWrapper(function(r, c) {
-            grid.previewDrag(r, c)
+            if (grid.dragAxisSet) {
+                if (rowAxis) {
+                    r = grid.dragStart[0];
+                } else {
+                    c = grid.dragStart[1];
+                }
+            }
+            grid.previewDrag(r, c);
+            if (grid.dragLine) {
+                if (grid.dragStart[0] != r ||
+                    grid.dragStart[1] != c) {
+                    if (!grid.dragAxisSet) {
+                        if (grid.dragStart[0] != r) {
+                            rowAxis = false;
+                        } else {
+                            rowAxis = true;
+                        }
+                        grid.dragAxisSet = true;
+                    }
+                    
+                    grid.dragLine.finishUpdate(grid.dragStart[0],
+                                               grid.dragStart[1],
+                                               r,
+                                               c,
+                                               grid.lines);
+                    grid.dragStart[0] = r;
+                    grid.dragStart[1] = c;
+                    grid.dragLeftStartSquare = false;
+                }
+            }
         });
     }
 
@@ -727,7 +759,6 @@ class Game {
                 Math.min(Math.min(($(window).innerHeight() - 64 - $("#controls").height()) / height,
                                   ($(window).innerWidth() - 32) / width),
                          2.5);
-            console.log($("#controls").height(), scale);
             var bc = $("#board-container");
             bc.css("width", (board.width() || 0) * scale);
             bc.css("height", (board.height() || 0) * scale);
