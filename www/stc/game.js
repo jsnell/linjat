@@ -466,6 +466,9 @@ class Grid {
         this.eachCell(function(cell) {
             cell.setStyle();
         });
+        this.eachLine(function(line) {
+            line.setStyle();
+        });
     }
 
     reset(board) {
@@ -612,11 +615,10 @@ class Game {
         board.on('touchstart', grid.makeStartDragTouch());
         board.on('touchend', grid.makeStopDragTouch());
         board.on('touchmove', grid.makePreviewDragTouch());
-        board.on('touchleave', grid.makeCancelDrag());
-        board.on('touchcancel', grid.makeCancelDrag());
 
         $("#reset").click(function() { grid.reset(board) });
         $("#done").click(function() {
+            game.grid.updateStyles();
             if (game.grid.empty()) {
                 // Done on the final level of a sequence returns
                 // to the front page.
