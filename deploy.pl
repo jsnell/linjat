@@ -73,6 +73,7 @@ sub deploy_stc {
     mkdir "$target/";
     mkdir "$target/data/";
     for my $f (qw(data/puzzles.json
+                  stc/favicon.png
                   stc/game.css
                   stc/game.js
                   stc/linjat.png
