@@ -512,6 +512,15 @@ class Grid {
         
         return blink.length == 0;
     }
+
+    clear() {
+        this.grid = [];
+        this.lines = [];
+    }
+
+    empty() {
+        return this.grid.length == 0;
+    }
 }
 
 class GameId {
@@ -604,7 +613,11 @@ class Game {
 
         $("#reset").click(function() { grid.reset(board) });
         $("#done").click(function() {
-            if (game.grid.check()) {
+            if (game.grid.empty()) {
+                // Done on the final level of a sequence returns
+                // to the front page.
+                back();
+            } else if (game.grid.check()) {
                 game.incrementStartLevel(game.gameId);
                 game.startGame(game.gameId.next());
             }
@@ -659,32 +672,44 @@ class Game {
             game.frontPage();
             return;
         }
-    
-        var size = grid.load(
-            game.games[gameId.level][gameId.index - 1].puzzle);
+
+        var spec = game.games[gameId.level][gameId.index - 1];
+
+        $("#message").toggle(spec.message != null);
+        $("#message").text(spec.message);
+        $("#board").toggle(spec.puzzle != null);
 
         game.gameId = gameId;
         document.location.hash = "game." + gameId.str();
 
-        board.empty();
-        grid.eachLine(function (line) {
-            board.append(line.elem);
-        });
-        grid.eachCell(function (cell) {
-            board.append(cell.elem);
-            if (cell.value == '.') {
-                cell.elem.html("&middot;");
-            } else {
-                cell.elem.text(cell.value);
-            }
-        });
+        if (spec.puzzle) {
+            var size = grid.load(spec.puzzle);
 
-        var width = cellSize * size.width + 6;
-        var height = cellSize * size.height + 6;
-        board.css("width", width);
-        board.css("height", height);
+            board.empty();
+            grid.eachLine(function (line) {
+                board.append(line.elem);
+            });
+            grid.eachCell(function (cell) {
+                board.append(cell.elem);
+                if (cell.value == '.') {
+                    cell.elem.html("&middot;");
+                } else {
+                    cell.elem.text(cell.value);
+                }
+            });
 
-        grid.updateStyles();
+            var width = cellSize * size.width + 6;
+            var height = cellSize * size.height + 6;
+            board.css("width", width);
+            board.css("height", height);
+
+            grid.updateStyles();
+        } else {
+            board.empty();
+            grid.clear();
+            board.css("width", 0);
+            board.css("height", 0);
+        }
 
         function resize() {
             var scale =

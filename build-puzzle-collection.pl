@@ -44,23 +44,32 @@ sub build {
     return [shuffle @output];
 }
 
+sub add_all_done {
+    [@{$_[0]},
+     { puzzle => undef,
+       message => "Congratulations, you've solved all " .
+           "available puzzles for this difficulty level."
+     }]
+}
+
 print encode_json {
     # Like easy, but fewer pieces
-    easy => (build 9, 6, sub { my $r = shift; $r->{classification}{basic}{solved} }),
+    easy => add_all_done(build 9, 6, sub { my $r = shift; $r->{classification}{basic}{solved} }),
     # Easy mode, must be solvable with just the rote rule.
-    medium => (build 10, 7, sub { my $r = shift; $r->{classification}{basic}{solved} }),
+    medium => add_all_done(build 10, 7, sub { my $r = shift; $r->{classification}{basic}{solved} }),
     # Medium. Deduction based on corners of a rectangle, with
     # one pair of opposite corners having numbers, the other pair
     # having dots.
-    hard => (build 11, 8, sub { my $r = shift; !$r->{classification}{no_square}{solved} && $r->{classification}{no_dep}{solved}}),
-    expert => (build 13, 9, sub {
-        my $r = shift;
-        # !$r->{classification}{no_dep}{solved}
-        1
-             }, sub {
-                 my $r = shift;
-                 $r->{classification}{no_dep}{solved} * -10 + $r->{classification}{no_square}{solved} * -5
-             }),
+    hard => add_all_done(build 11, 8, sub { my $r = shift; !$r->{classification}{no_square}{solved} && $r->{classification}{no_dep}{solved}}),
+    expert => add_all_done(
+        build 13, 9, sub {
+            my $r = shift;
+            # !$r->{classification}{no_dep}{solved}
+            1
+        }, sub {
+            my $r = shift;
+            $r->{classification}{no_dep}{solved} * -10 + $r->{classification}{no_square}{solved} * -5
+        }),
 };
 
 
