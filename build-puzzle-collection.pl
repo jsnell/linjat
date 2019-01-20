@@ -44,6 +44,30 @@ sub build {
     return [shuffle @output];
 }
 
+sub tutorial {
+    ({ puzzle => ["    ",
+                  "    ",
+                  ".  4",
+                  "    "],
+       message => "Drag the 4 over the dot. Then click 'Done' to check the solution."
+     },
+     { puzzle => ["    ",
+                  "    ",
+                  ".3. ",
+                  "    "],
+       message => "Lines can extend in both directions. Cover both of the dots by drawing a line from the 3 to the left, and then again to the right. Then click 'Done'."
+     },
+     { puzzle => [" 4  ",
+                  "    ",
+                  ". 3 ",
+                  "    "],
+       message => "Drag the 3 over the dot. That means the 4 will only fit in horizontally. Draw that line too, and click 'Done'."
+     },
+     { puzzle => undef,
+       message => "You should be good to go now! But take care: the actual puzzles might require types of logical deduction that weren't part of this tutorial."
+     })
+}
+
 sub add_all_done {
     [@{$_[0]},
      { puzzle => undef,
@@ -54,6 +78,7 @@ sub add_all_done {
 
 print encode_json {
     # Like easy, but fewer pieces
+    tutorial => [tutorial],
     easy => add_all_done(build 9, 6, sub { my $r = shift; $r->{classification}{basic}{solved} }),
     # Easy mode, must be solvable with just the rote rule.
     medium => add_all_done(build 10, 7, sub { my $r = shift; $r->{classification}{basic}{solved} }),

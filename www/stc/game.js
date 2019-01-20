@@ -470,6 +470,9 @@ class Grid {
 
     reset(board) {
         var grid = this;
+        if (grid.empty()) {
+            return;
+        }
         board.fadeOut(250);
         board.queue(function() {
             grid.eachLine(function(line) {
@@ -572,15 +575,16 @@ class Game {
         };        
         $("#about").click(about);
 
-        function play(level) {
+        function play(level, initialId) {
             game.leaveFrontPage(function() {
-                var id = game.getStartLevel(level);
+                var id = initialId || game.getStartLevel(level);
                 // TODO: Store solved puzzles in localstorage,
                 // jump to first unsolved.
                 game.startGame(new GameId(level + "." + id));
             });
             return false;
         }
+        $("#tutorial").click(function() { play("tutorial", 1) });
         $("#easy").click(function() { play("easy") });
         $("#medium").click(function() { play("medium") });
         $("#hard").click(function() { play("hard") });
@@ -677,11 +681,15 @@ class Game {
 
         $("#message").toggle(spec.message != null);
         $("#message").text(spec.message);
+        if (spec.message) {
+            $("#message").css("max-width", 500);
+        }
         $("#board").toggle(spec.puzzle != null);
 
         game.gameId = gameId;
         document.location.hash = "game." + gameId.str();
 
+        var width, height;
         if (spec.puzzle) {
             var size = grid.load(spec.puzzle);
 
@@ -698,38 +706,40 @@ class Game {
                 }
             });
 
-            var width = cellSize * size.width + 6;
-            var height = cellSize * size.height + 6;
+            width = cellSize * size.width + 6;
+            height = cellSize * size.height + 6;
             board.css("width", width);
             board.css("height", height);
 
             grid.updateStyles();
         } else {
-            board.empty();
             grid.clear();
+            board.empty();
             board.css("width", 0);
             board.css("height", 0);
+            width = height = 0;
         }
 
         function resize() {
             var scale =
-                Math.min(Math.min(($(window).innerHeight() - 32 - 128) / height,
+                Math.min(Math.min(($(window).innerHeight() - 64 - $("#controls").height()) / height,
                                   ($(window).innerWidth() - 32) / width),
                          2.5);
+            console.log($("#controls").height(), scale);
             var bc = $("#board-container");
-            bc.css("width", board.width() * scale);
-            bc.css("height", board.height() * scale);
+            bc.css("width", (board.width() || 0) * scale);
+            bc.css("height", (board.height() || 0) * scale);
             bc.css("left", (game.main.width() - bc.width()) / 2);
             game.main.css("left", ($(window).innerWidth() - game.main.width()) / 2);
 
             board.css("transform", "scale(" + scale + ")");
             board.css("transform-origin", "0 0");
         }
-        resize();
         $(window).off("resize");
         $(window).resize(resize);
 
         this.main.show();
+        resize();
     }
 
     help() {
