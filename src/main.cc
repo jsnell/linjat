@@ -34,6 +34,14 @@ DEFINE_bool(disallow_only_square, false,
             "If set, generate only puzzles that require 'dep' "
             "deduction.");
 
+enum DeductionKind {
+    NONE = 0,
+    COVER = 1,
+    CANT_FIT = 2,
+    SQUARE = 3,
+    DEPENDENCY = 4,
+};
+
 class Game {
 public:
     static const int W = MAP_WIDTH + 1, H = MAP_HEIGHT, N = PIECES;
@@ -43,22 +51,16 @@ public:
     using MaskArray = std::array<Mask, H * W>;
     using DepMask = std::bitset<H * W>;
 
-    struct Options {
-        bool dep_ = true;
-        bool dep_non_forced_ = true;
-        bool square_ = true;
-    };
+    using IterationResult = std::pair<DeductionKind, int>;
 
-    Game() : Game(Options()) {
-    }
-
-    Game(Options opt) : opt_(opt) {
+    Game() {
         for (int r = 0; r < H; ++r) {
             border_[r * W] = 1;
         }
         randomize();
         reset_hints();
         reset_possible();
+        update_possible();
         orig_possible_ = possible_;
     }
 
@@ -86,9 +88,6 @@ public:
         }
         for (int i = 0; i < N; ++i) {
             valid_orientation_[i] = init_valid_orientations(i);
-        }
-        for (auto& dep : dependent_) {
-            dep.reset();
         }
     }
 
@@ -154,12 +153,12 @@ public:
                         for (int p = 0; p < N; ++p) {
                             if (hints_[p].first == at) {
                                 printf(" % 3d ",
-                                       valid_orientation_[p]);
-                                // orientation_count(p));
+                                       // valid_orientation_[p]);
+                                       orientation_count(p));
                                 printed = true;
                             }
                         }
-                    if (!printed)
+                        if (!printed)
                             printf("  .  ");
                     }
                 }
@@ -173,21 +172,53 @@ public:
         for (int at = 0; at < W * H; ++at) {
             possible_[at] = 0;
         }
-        for (int piece = 0; piece < N; ++piece) {
-            update_possible(piece);
-        }
-        if (opt_.dep_) {
-            update_dependent();
-        }
-        if (opt_.square_) {
-            update_square();
-        }
     }
 
-    int reset_fixed() {
+    IterationResult iterate() {
+        reset_possible();
+        {
+            update_possible();
+            int count = update_forced_coverage();
+            if (count) {
+                return { DeductionKind::COVER, count };
+            }
+            count = update_cant_fit();
+            if (count) {
+                return { DeductionKind::CANT_FIT, count };
+            }
+        }
+
+        {
+            update_square();
+            int count = update_cant_fit();
+            if (count) {
+                return { DeductionKind::SQUARE, count };
+            }
+        }
+
+        {
+            update_dependent();
+            int count = update_cant_fit();
+            if (count) {
+                return { DeductionKind::DEPENDENCY, count };
+            }
+        }
+
+        return { DeductionKind::NONE, 0 };
+    }
+
+    int update_cant_fit() {
         int count = 0;
         for (int piece = 0; piece < N; ++piece) {
-            count += update_fixed(piece);
+            count += update_cant_fit_for_piece(piece);
+        }
+        return count;
+    }
+
+    int update_forced_coverage() {
+        int count = 0;
+        for (int piece = 0; piece < N; ++piece) {
+            count += update_forced_coverage_for_piece(piece);
         }
         return count;
     }
@@ -279,10 +310,9 @@ public:
 
         reset_hints();
         reset_possible();
+        update_possible();
         orig_possible_ = possible_;
     }
-
-    Options opt_;
 
 private:
     int orig_possible_count(int at) {
@@ -305,7 +335,13 @@ private:
         return __builtin_popcountl(valid_orientation_[piece]);
     }
 
-    void update_possible(int piece) {
+    void update_possible() {
+        for (int piece = 0; piece < N; ++piece) {
+            update_possible_for_piece(piece);
+        }
+    }
+
+    void update_possible_for_piece(int piece) {
         Mask mask = piece_mask(piece);
         int at = hints_[piece].first;
         int size = hints_[piece].second;
@@ -331,7 +367,24 @@ private:
         }
     }
 
-    int update_fixed(int piece) {
+    int update_forced_coverage_for_piece(int piece) {
+        Mask mask = piece_mask(piece);
+        int updated = 0;
+
+        for (int at = 0; at < W * H; ++at) {
+            if (!fixed_[at]) {
+                if ((forced_[at] && possible_[at] == mask)) {
+                    updated = 1;
+                    fixed_[at] = mask;
+                    update_not_possible(at, mask, piece);
+                }
+            }
+        }
+
+        return updated;
+    }
+
+    int update_cant_fit_for_piece(int piece) {
         Mask mask = piece_mask(piece);
         int piece_at = hints_[piece].first;
         int size = hints_[piece].second;
@@ -360,8 +413,7 @@ private:
         int updated = 0;
         for (int at = 0; at < W * H; ++at) {
             if (!fixed_[at]) {
-                if ((count[at] == valid_count) ||
-                    (forced_[at] && possible_[at] == mask)) {
+                if (count[at] == valid_count) {
                     updated = 1;
                     fixed_[at] = mask;
                     update_not_possible(at, mask, piece);
@@ -457,13 +509,9 @@ private:
                     if (dep[target] &&
                         target != at &&
                         possible_[at] != possible_[target]) {
-                        if (opt_.dep_non_forced_) {
-                            possible_[target] &= possible_[at];
-                        } else {
-                            if (forced_[target]) {
-                                possible_[target] = possible_[at] =
-                                    (possible_[target] & possible_[at]);
-                            }
+                        if (forced_[target]) {
+                            possible_[target] = possible_[at] =
+                                (possible_[target] & possible_[at]);
                         }
                     }
                 }
@@ -579,16 +627,14 @@ private:
     MaskArray orig_possible_;
     MaskArray possible_ = { 0 };
     MaskArray fixed_ = { 0 };
-    std::array<DepMask, H * W> dependent_;
     bool forced_[H * W] = { 0 };
     bool border_[H * W] = { 0 };
 };
 
 Game add_forced_squares(Game game) {
-    while (1) {
-        game.reset_possible();
-
-        if (!game.reset_fixed()) {
+    for (int i = 0; i < 100; ++i) {
+        auto res = game.iterate();
+        if (res.first == DeductionKind::NONE) {
             if (!game.force_one_square()) {
                 break;
             }
@@ -596,20 +642,19 @@ Game add_forced_squares(Game game) {
         if (game.impossible()) {
             break;
         }
+        // game.print_puzzle(false);
     }
 
     return game;
 }
 
 struct SolutionMetaData {
-    bool solved = false;
     int depth = 0;
     int max_width = 0;
 
     void print(const string& prefix, const string& suffix) {
         printf("%s", prefix.c_str());
 
-        printf("\"solved\": %d, ", solved);
         printf("\"depth\": %d, ", depth);
         printf("\"max_width\": %d", max_width);
 
@@ -617,25 +662,64 @@ struct SolutionMetaData {
     }
 };
 
-SolutionMetaData solve_game_with_options(Game game,
-                                         Game::Options opt) {
-    SolutionMetaData ret;
+struct Classification {
+    SolutionMetaData all;
+    SolutionMetaData dep;
+    SolutionMetaData square;
+    SolutionMetaData cant_fit;
+    SolutionMetaData cover;
+
+    bool solved = false;
+
+    void print(const string& prefix, const string& suffix) {
+        printf("%s", prefix.c_str());
+
+        all.print("\"all\": {", "}, ");
+        dep.print("\"dep\": {", "}, ");
+        square.print("\"square\": {", "}, ");
+        cant_fit.print("\"cant_fit\": {", "}");
+        cover.print("\"cover\": {", "}");
+        printf("%s", suffix.c_str());
+    }
+};
+
+Classification classify_game(Game game) {
+    Classification ret;
 
     game.reset_hints();
-    game.opt_ = opt;
 
     for (int i = 0; ; ++i) {
-        game.reset_possible();
-
-        int width = game.reset_fixed();
-        if (!width) {
+        auto res = game.iterate();
+        switch (res.first) {
+        case DeductionKind::NONE:
+            return ret;
+        case DeductionKind::COVER:
+            ret.cover.depth++;
+            ret.cover.max_width = std::max(ret.cover.max_width,
+                                           res.second);
+            break;
+        case DeductionKind::CANT_FIT:
+            ret.cant_fit.depth++;
+            ret.cant_fit.max_width = std::max(ret.cant_fit.max_width,
+                                              res.second);
+            break;
+        case DeductionKind::SQUARE:
+            ret.square.depth++;
+            ret.square.max_width = std::max(ret.square.max_width,
+                                            res.second);
+            break;
+        case DeductionKind::DEPENDENCY:
+            ret.dep.depth++;
+            ret.dep.max_width = std::max(ret.dep.max_width,
+                                         res.second);
             break;
         }
-        ret.max_width = std::max(ret.max_width, width);
+        ret.all.depth++;
+        ret.all.max_width = std::max(ret.all.max_width,
+                                     res.second);
 
         if (game.solved()) {
             ret.solved = true;
-            ret.depth = i;
             break;
         }
 
@@ -647,46 +731,8 @@ SolutionMetaData solve_game_with_options(Game game,
     return ret;
 }
 
-struct Classification {
-    SolutionMetaData all;
-    SolutionMetaData no_dep;
-    SolutionMetaData no_square;
-    SolutionMetaData basic;
-
-    void print(const string& prefix, const string& suffix) {
-        printf("%s", prefix.c_str());
-
-        all.print("\"all\": {", "}, ");
-        no_dep.print("\"no_dep\": {", "}, ");
-        no_square.print("\"no_square\": {", "}, ");
-        basic.print("\"basic\": {", "}");
-        printf("%s", suffix.c_str());
-    }
-};
-
-Classification classify_game(Game game) {
-    Classification ret;
-
-    Game::Options all;
-    ret.all = solve_game_with_options(game, all);
-
-    Game::Options no_dep;
-    no_dep.dep_ = false;
-    ret.no_dep = solve_game_with_options(game, no_dep);
-
-    Game::Options no_square;
-    no_square.square_ = false;
-    ret.no_square = solve_game_with_options(game, no_square);
-
-    Game::Options basic;
-    basic.dep_ = basic.dep_non_forced_ = basic.square_ = false;
-    ret.basic = solve_game_with_options(game, basic);
-
-    return ret;
-}
-
 Game mutate(Game game) {
-    game.reset_fixed();
+    // game.reset_fixed();
     game.reset_forced();
     game.mutate();
 
@@ -699,9 +745,7 @@ struct OptimizationResult {
         score = -(5 * cls.all.max_width);
         score += cls.all.depth;
         if (FLAGS_disallow_only_square) {
-            if (cls.all.solved && !cls.no_dep.solved) {
-                score += 1000;
-            }
+            score += cls.dep.depth * 1000;
         }
     }
 
@@ -727,10 +771,11 @@ Game minimize_width(Game game) {
         opt = add_forced_squares(opt);
         OptimizationResult opt_res(opt, classify_game(opt));
 
-        if (FLAGS_disallow_basic && opt_res.cls.basic.solved) {
+        if (FLAGS_disallow_basic && opt_res.cls.square.depth == 0 &&
+            opt_res.cls.dep.depth == 0) {
             continue;
         }
-        if (opt_res.cls.all.solved &&
+        if (opt_res.cls.solved &&
             opt_res.cls.all.max_width < base.cls.all.max_width) {
             res.push_back(opt_res);
             sort(res.begin(), res.end(), Cmp());
@@ -752,16 +797,16 @@ Game optimize_game(Game game) {
     fprintf(stderr, "%d/%d [%d/%d/%d/%d] -> %d/%d [%d/%d/%d/%d]\n",
             cls.all.max_width,
             cls.all.depth,
-            cls.all.solved,
-            cls.no_square.solved,
-            cls.no_dep.solved,
-            cls.basic.solved,
+            cls.square.depth,
+            cls.dep.depth,
+            cls.cant_fit.depth,
+            cls.cover.depth,
             opt_cls.all.max_width,
             opt_cls.all.depth,
-            opt_cls.all.solved,
-            opt_cls.no_square.solved,
-            opt_cls.no_dep.solved,
-            opt_cls.basic.solved);
+            opt_cls.square.depth,
+            opt_cls.dep.depth,
+            opt_cls.cant_fit.depth,
+            opt_cls.cover.depth);
 
     return opt;
 }
@@ -775,10 +820,12 @@ Game create_candidate_game() {
 
         if (game.solved()) {
             Classification cls = classify_game(game);
-            if (!cls.all.solved) {
+            if (!cls.solved) {
                 continue;
             }
-            if (FLAGS_disallow_basic && cls.basic.solved) {
+            if (FLAGS_disallow_basic &&
+                cls.square.depth == 0 &&
+                cls.dep.depth == 0) {
                 continue;
             }
             // if (FLAGS_disallow_only_square &&
