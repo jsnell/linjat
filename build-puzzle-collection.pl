@@ -25,7 +25,8 @@ sub build {
             $cls->{cover}{depth} +
             $cls->{cant_fit}{depth} +
             $cls->{square}{depth} * 10 +
-            $cls->{dep}{depth} * 50;
+            $cls->{dep}{depth} * 50 -
+            $cls->{all}{max_width} * 2;
     }
 
     my @output = ();
@@ -33,10 +34,14 @@ sub build {
                  grep { defined $_->{score} } @records;
 
     for my $record (@sorted) {
-        push @output, { "puzzle" => $record->{puzzle} };
+        push @output, {
+            puzzle => $record->{puzzle},
+            score => $record->{score}
+        };
         my $cls = $record->{classification};
         print STDERR join " ", $record->{score},
-            $record->{score},
+            $cls->{all}{max_width},
+            "|",
             $cls->{cover}{depth},
             $cls->{cant_fit}{depth},
             $cls->{square}{depth},

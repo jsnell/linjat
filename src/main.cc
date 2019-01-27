@@ -36,6 +36,8 @@ DEFINE_int32(score_square, 1,
              "deduction rule.");
 DEFINE_int32(score_dep, 1,
              "Weight given to dependent squares deduction rule.");
+DEFINE_int32(score_max_width, -1,
+             "Weight given to width of solution tree.");
 
 enum DeductionKind {
     NONE = 0,
@@ -749,7 +751,8 @@ struct OptimizationResult {
             (cls.cover.depth * FLAGS_score_cover) +
             (cls.cant_fit.depth * FLAGS_score_cant_fit) +
             (cls.square.depth * FLAGS_score_square) +
-            (cls.dep.depth * FLAGS_score_dep);
+            (cls.dep.depth * FLAGS_score_dep) +
+            (cls.all.max_width * FLAGS_score_max_width);
     }
 
     Game game;
@@ -796,14 +799,14 @@ Game optimize_game(Game game) {
     fprintf(stderr, "%d/%d [%d/%d/%d/%d] -> %d/%d [%d/%d/%d/%d]\n",
             cls.all.max_width,
             cls.all.depth,
-            cls.square.depth,
             cls.dep.depth,
+            cls.square.depth,
             cls.cant_fit.depth,
             cls.cover.depth,
             opt_cls.all.max_width,
             opt_cls.all.depth,
-            opt_cls.square.depth,
             opt_cls.dep.depth,
+            opt_cls.square.depth,
             opt_cls.cant_fit.depth,
             opt_cls.cover.depth);
 
