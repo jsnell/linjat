@@ -20,10 +20,12 @@ sub build {
 
     for my $record (@records) {
         next if !$accept->($record);
+        my $cls = $record->{classification};
         $record->{score} =
-            (10 - $record->{classification}{all}{max_width}) + 
-            $record->{classification}{all}{depth} +
-            (defined $score ? $score->($record) : 0);
+            $cls->{cover}{depth} +
+            $cls->{cant_fit}{depth} * 3 +
+            $cls->{square}{depth} * 10 +
+            $cls->{dep}{depth} * 50;
     }
 
     my @output = ();
@@ -32,11 +34,13 @@ sub build {
 
     for my $record (@sorted) {
         push @output, { "puzzle" => $record->{puzzle} };
+        my $cls = $record->{classification};
         print STDERR join " ", $record->{score},
-            $record->{classification}{all}{max_width},
-            $record->{classification}{all}{depth},
-            $record->{classification}{no_dep}{solved},
-            $record->{classification}{no_square}{solved},
+            $record->{score},
+            $cls->{cover}{depth},
+            $cls->{cant_fit}{depth},
+            $cls->{square}{depth},
+            $cls->{dep}{depth},
             $record->{file};
         last if @output >= 99;
     }
@@ -77,23 +81,36 @@ sub add_all_done {
 }
 
 print encode_json {
-    # Like easy, but fewer pieces
+    # Hand-built examples with explanatory text
     tutorial => [tutorial],
-    easy => add_all_done(build 9, 6, sub { my $r = shift; $r->{classification}{basic}{solved} }),
     # Easy mode, must be solvable with just the rote rule.
-    medium => add_all_done(build 10, 7, sub { my $r = shift; $r->{classification}{basic}{solved} }),
-    # Medium. Deduction based on corners of a rectangle, with
-    # one pair of opposite corners having numbers, the other pair
-    # having dots.
-    hard => add_all_done(build 11, 8, sub { my $r = shift; !$r->{classification}{no_square}{solved} && $r->{classification}{no_dep}{solved}}),
+    easy => add_all_done(
+        build 9, 6, sub {
+            my $r = shift;
+            (!$r->{classification}{square}{depth} &&
+             !$r->{classification}{dep}{depth})
+        }),
+    # Like easy, but a little larger levels.
+    medium => add_all_done(
+        build 10, 7,, sub {
+            my $r = shift;
+            (!$r->{classification}{square}{depth} &&
+             !$r->{classification}{dep}{depth})
+        }),
+    # Must include some dedeuction based on corners of a
+    # rectangle.
+    hard => add_all_done(
+        build 11, 8, sub {
+            my $r = shift;
+            (!$r->{classification}{square}{depth} &&
+             !$r->{classification}{dep}{solved})
+        }),
+    # Everything.
     expert => add_all_done(
         build 13, 9, sub {
-            my $r = shift;
-            # !$r->{classification}{no_dep}{solved}
             1
         }, sub {
-            my $r = shift;
-            $r->{classification}{no_dep}{solved} * -10 + $r->{classification}{no_square}{solved} * -5
+            1
         }),
 };
 

@@ -26,13 +26,16 @@ using std::string;
 DEFINE_int32(seed, 1, "RNG seed.");
 DEFINE_int32(puzzle_count, 100, "Number of puzzles to generate.");
 
-DEFINE_bool(disallow_basic, false,
-            "If set, never generate puzzles that require only "
-            "'basic' deduction.");
 
-DEFINE_bool(disallow_only_square, false,
-            "If set, generate only puzzles that require 'dep' "
-            "deduction.");
+DEFINE_int32(score_cover, 1,
+             "Weight given to basic covering deduction rule.");
+DEFINE_int32(score_cant_fit, 1,
+             "Weight given to basic piece fit deduction rule.");
+DEFINE_int32(score_square, 1,
+             "Weight given to forced corners of rectangle "
+             "deduction rule.");
+DEFINE_int32(score_dep, 1,
+             "Weight given to dependent squares deduction rule.");
 
 enum DeductionKind {
     NONE = 0,
@@ -306,7 +309,7 @@ public:
             default:
                 break;
             }
-        } while (rand() % 10 < 1);
+        } while (rand() % 2 < 1);
 
         reset_hints();
         reset_possible();
@@ -677,7 +680,7 @@ struct Classification {
         all.print("\"all\": {", "}, ");
         dep.print("\"dep\": {", "}, ");
         square.print("\"square\": {", "}, ");
-        cant_fit.print("\"cant_fit\": {", "}");
+        cant_fit.print("\"cant_fit\": {", "}, ");
         cover.print("\"cover\": {", "}");
         printf("%s", suffix.c_str());
     }
@@ -742,11 +745,11 @@ Game mutate(Game game) {
 struct OptimizationResult {
     OptimizationResult(Game game, Classification cls)
         : game(game), cls(cls) {
-        score = -(5 * cls.all.max_width);
-        score += cls.all.depth;
-        if (FLAGS_disallow_only_square) {
-            score += cls.dep.depth * 1000;
-        }
+        score =
+            (cls.cover.depth * FLAGS_score_cover) +
+            (cls.cant_fit.depth * FLAGS_score_cant_fit) +
+            (cls.square.depth * FLAGS_score_square) +
+            (cls.dep.depth * FLAGS_score_dep);
     }
 
     Game game;
@@ -771,10 +774,6 @@ Game minimize_width(Game game) {
         opt = add_forced_squares(opt);
         OptimizationResult opt_res(opt, classify_game(opt));
 
-        if (FLAGS_disallow_basic && opt_res.cls.square.depth == 0 &&
-            opt_res.cls.dep.depth == 0) {
-            continue;
-        }
         if (opt_res.cls.solved &&
             opt_res.cls.all.max_width < base.cls.all.max_width) {
             res.push_back(opt_res);
@@ -814,7 +813,7 @@ Game optimize_game(Game game) {
 
 // Find a game with the given parameters that can be solved.
 Game create_candidate_game() {
-    for (int i = 0; i < 500000; ++i) {
+    for (int i = 0; i < 1000000; ++i) {
         Game game;
         game = add_forced_squares(game);
 
@@ -823,15 +822,10 @@ Game create_candidate_game() {
             if (!cls.solved) {
                 continue;
             }
-            if (FLAGS_disallow_basic &&
-                cls.square.depth == 0 &&
-                cls.dep.depth == 0) {
+            if ((FLAGS_score_square > 0 || FLAGS_score_dep > 0) &&
+                (cls.square.depth == 0 && cls.dep.depth == 0)) {
                 continue;
             }
-            // if (FLAGS_disallow_only_square &&
-            //     cls.no_dep.solved) {
-            //     continue;
-            // }
             return game;
         }
     }
