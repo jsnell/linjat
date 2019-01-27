@@ -5,7 +5,7 @@ use JSON;
 use List::Util qw(shuffle);
 
 sub build {
-    my ($h, $w, $accept, $score) = @_;
+    my ($h, $w, $accept, $score, $add_easy_first) = @_;
     my @files = glob("puzzledb/h=${h}_w=${w}_*");
     my @records = ();
     
@@ -45,7 +45,12 @@ sub build {
         last if @output >= 99;
     }
 
-    return [shuffle @output];
+    my @shuffled = shuffle @output;
+    if ($add_easy_first) {
+        $shuffled[0] = pop @sorted;
+    }
+
+    [@shuffled];
 }
 
 sub tutorial {
@@ -89,7 +94,7 @@ print encode_json {
             my $r = shift;
             (!$r->{classification}{square}{depth} &&
              !$r->{classification}{dep}{depth})
-        }),
+        }, sub { 1 }, 1),
     # Like easy, but a little larger levels.
     medium => add_all_done(
         build 10, 7,, sub {
