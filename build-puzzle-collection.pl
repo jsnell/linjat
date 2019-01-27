@@ -23,7 +23,7 @@ sub build {
         my $cls = $record->{classification};
         $record->{score} =
             $cls->{cover}{depth} +
-            $cls->{cant_fit}{depth} * 3 +
+            $cls->{cant_fit}{depth} +
             $cls->{square}{depth} * 10 +
             $cls->{dep}{depth} * 50;
     }
@@ -94,13 +94,17 @@ print encode_json {
             my $r = shift;
             (!$r->{classification}{square}{depth} &&
              !$r->{classification}{dep}{depth})
-        }, sub { 1 }, 1),
+        }, sub {
+            $cls->{cant_fit}{depth} * 2
+        }, 1),
     # Like easy, but a little larger levels.
     medium => add_all_done(
         build 10, 7,, sub {
             my $r = shift;
             (!$r->{classification}{square}{depth} &&
              !$r->{classification}{dep}{depth})
+        }, sub {
+            $cls->{cant_fit}{depth} * 2
         }),
     # Must include some dedeuction based on corners of a
     # rectangle.
