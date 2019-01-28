@@ -36,6 +36,8 @@ DEFINE_int32(score_square, 1,
              "deduction rule.");
 DEFINE_int32(score_dep, 1,
              "Weight given to dependent squares deduction rule.");
+DEFINE_int32(score_one_of, 1,
+             "Weight given to dependent squares deduction rule.");
 DEFINE_int32(score_max_width, -1,
              "Weight given to width of solution tree.");
 
@@ -45,6 +47,7 @@ enum DeductionKind {
     CANT_FIT = 2,
     SQUARE = 3,
     DEPENDENCY = 4,
+    ONE_OF = 5,
 };
 
 class Game {
@@ -195,6 +198,8 @@ public:
 
         {
             update_square();
+            // Is there really no need to check u_forced_coverage
+            // here?
             int count = update_cant_fit();
             if (count) {
                 return { DeductionKind::SQUARE, count };
@@ -206,6 +211,14 @@ public:
             int count = update_cant_fit();
             if (count) {
                 return { DeductionKind::DEPENDENCY, count };
+            }
+        }
+
+        {
+            update_one_of();
+            int count = update_cant_fit();
+            if (count) {
+                return { DeductionKind::ONE_OF, count };
             }
         }
 
@@ -524,7 +537,12 @@ private:
         }
     }
 
-    DepMask find_dependent(int piece, int target) {
+    DepMask find_one_of(int piece, int target) {
+        return find_dependent(piece, target, false);
+    }
+
+    DepMask find_dependent(int piece, int target,
+                           bool wanted_overlap = true) {
         Mask mask = piece_mask(piece);
         int at = hints_[piece].first;
         int size = hints_[piece].second;
@@ -546,7 +564,7 @@ private:
                                                  fixed_[at] == mask);
                                      });
                 DepMask mask;
-                if (ok && overlaps_target) {
+                if (ok && overlaps_target == wanted_overlap) {
                     do_squares(size, at + offset * -step, step,
                                [&] (int at) {
                                    mask[at] = true;
@@ -617,6 +635,119 @@ private:
         }
     }
 
+    // Find dependencies. E.g.:
+    //
+    //----
+    //  y2
+    //  3.
+    //  Y2
+    // ---
+    //
+    // Both 2s can't be vertical, so either Y or y must be
+    // filled. So 3 must be horizontal.
+    void update_one_of() {
+        for (int at = 0; at < W * H; ++at) {
+            // Find squares where two pieces on the same
+            // row / column can intersect.
+            if (fixed_[at])
+                continue;
+            if (possible_count(at) < 2)
+                continue;
+            int piece_a = 0, piece_b = 0;
+            // This is slightly suboptimal that it'll only
+            // find one pair of potential a / b piece, not
+            // pairs.
+            if (!find_pieces_on_same_row_or_column(at,
+                                                   &piece_a,
+                                                   &piece_b))
+                continue;
+            // For each of those two pieces, find the set of squares
+            // that they must pass through if they don't go through
+            // the intersecting square.
+            DepMask a = find_one_of(piece_a, at);
+            DepMask b = find_one_of(piece_b, at);
+            Mask target_pieces_a = 0;
+            Mask target_pieces_b = 0;
+            // Then see if there exists a piece that could
+            // intersect with both of the above sets.
+            for (int target = 0; target < W * H; ++target) {
+                if (!a[target] && !b[target])
+                    continue;
+                for (int piece = 0; piece < N; ++piece) {
+                    if (piece == piece_a || piece == piece_b)
+                        continue;
+                    if (piece_mask(piece) & possible_[target]) {
+                        if (a[target])
+                            target_pieces_a |= piece_mask(piece);
+                        if (b[target])
+                            target_pieces_b |= piece_mask(piece);
+                    }
+                }
+            }
+            Mask target_pieces_both = target_pieces_a &
+                target_pieces_b;
+            if (target_pieces_both) {
+                // If such a piece exists, check if the piece
+                // can intersect with both sets at the same time.
+                // If it can, exclude any such orientations.
+                for (int piece = 0; piece < N; ++piece) {
+                    if (piece_mask(piece) & target_pieces_both) {
+                        exclude_if_in_both_sets(piece, a, b);
+                    }
+                }
+            }
+        }
+    }
+
+    bool find_pieces_on_same_row_or_column(int at, int* a, int* b) {
+        int possible = possible_[at];
+        for (int i = 0; i < N; ++i) {
+            if (!(possible & piece_mask(i)))
+                continue;
+            for (int j = i + 1; j < N; ++j) {
+                if (!(possible & piece_mask(j)))
+                    continue;
+                int a_at = hints_[i].first;
+                int b_at = hints_[j].first;
+                if ((a_at / W == b_at / W) ||
+                    (a_at % W == b_at % W)) {
+                    *a = i;
+                    *b = j;
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    void exclude_if_in_both_sets(int piece,
+                                 const DepMask& a,
+                                 const DepMask& b) {
+        Mask mask = piece_mask(piece);
+        int at = hints_[piece].first;
+        int size = hints_[piece].second;
+        int valid_o = valid_orientation_[piece];
+
+        for (int o = 0; o < size * 2; ++o) {
+            if (valid_o & (1 << o)) {
+                int offset = (size - 1) - (o >> 1);
+                int step = ((o & 1) ? W : 1);
+                bool a_hit = false, b_hit = false;
+                bool ok = do_squares(
+                    size, at + offset * -step, step,
+                    [&] (int at) {
+                        if (a[at]) a_hit = true;
+                        if (b[at]) b_hit = true;
+                        return (!fixed_[at] || fixed_[at] == mask);
+                    });
+                if (ok && a_hit && b_hit) {
+                    valid_orientation_[piece] &= ~(1 << o);
+                }
+            }
+        }
+    }
+
     int distance(int a, int b) {
         int ra = a / W, rb = b / W,
             ca = a % W, cb = b % W;
@@ -669,6 +800,7 @@ struct SolutionMetaData {
 
 struct Classification {
     SolutionMetaData all;
+    SolutionMetaData one_of;
     SolutionMetaData dep;
     SolutionMetaData square;
     SolutionMetaData cant_fit;
@@ -680,6 +812,7 @@ struct Classification {
         printf("%s", prefix.c_str());
 
         all.print("\"all\": {", "}, ");
+        one_of.print("\"one_of\": {", "}, ");
         dep.print("\"dep\": {", "}, ");
         square.print("\"square\": {", "}, ");
         cant_fit.print("\"cant_fit\": {", "}, ");
@@ -718,6 +851,11 @@ Classification classify_game(Game game) {
             ret.dep.max_width = std::max(ret.dep.max_width,
                                          res.second);
             break;
+        case DeductionKind::ONE_OF:
+            ret.one_of.depth++;
+            ret.one_of.max_width = std::max(ret.one_of.max_width,
+                                           res.second);
+            break;
         }
         ret.all.depth++;
         ret.all.max_width = std::max(ret.all.max_width,
@@ -752,6 +890,7 @@ struct OptimizationResult {
             (cls.cant_fit.depth * FLAGS_score_cant_fit) +
             (cls.square.depth * FLAGS_score_square) +
             (cls.dep.depth * FLAGS_score_dep) +
+            (cls.one_of.depth * FLAGS_score_one_of) +
             (cls.all.max_width * FLAGS_score_max_width);
     }
 
@@ -796,15 +935,17 @@ Game optimize_game(Game game) {
     Game opt = minimize_width(game);
     Classification opt_cls = classify_game(opt);
 
-    fprintf(stderr, "%d/%d [%d/%d/%d/%d] -> %d/%d [%d/%d/%d/%d]\n",
+    fprintf(stderr, "%d/%d [%d/%d/%d/%d/%d] -> %d/%d [%d/%d/%d/%d/%d]\n",
             cls.all.max_width,
             cls.all.depth,
+            cls.one_of.depth,
             cls.dep.depth,
             cls.square.depth,
             cls.cant_fit.depth,
             cls.cover.depth,
             opt_cls.all.max_width,
             opt_cls.all.depth,
+            opt_cls.one_of.depth,
             opt_cls.dep.depth,
             opt_cls.square.depth,
             opt_cls.cant_fit.depth,
@@ -825,8 +966,11 @@ Game create_candidate_game() {
             if (!cls.solved) {
                 continue;
             }
-            if ((FLAGS_score_square > 0 || FLAGS_score_dep > 0) &&
-                (cls.square.depth == 0 && cls.dep.depth == 0)) {
+            if ((FLAGS_score_square > 0 || FLAGS_score_dep > 0 ||
+                 FLAGS_score_one_of > 0) &&
+                (cls.square.depth == 0 &&
+                 cls.one_of.depth == 0 &&
+                 cls.dep.depth == 0)) {
                 continue;
             }
             return game;

@@ -25,7 +25,8 @@ sub build {
             $cls->{cover}{depth} +
             $cls->{cant_fit}{depth} +
             $cls->{square}{depth} * 10 +
-            $cls->{dep}{depth} * 50 -
+            $cls->{dep}{depth} * 50 +
+            ($cls->{one_of}{depth} // 0) * 20 -
             $cls->{all}{max_width} * 2;
     }
 
@@ -45,6 +46,7 @@ sub build {
             $cls->{cover}{depth},
             $cls->{cant_fit}{depth},
             $cls->{square}{depth},
+            $cls->{one_of}{depth} // 0,
             $cls->{dep}{depth},
             $record->{file};
         last if @output >= 99;
