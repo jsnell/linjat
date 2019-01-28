@@ -324,7 +324,7 @@ public:
             default:
                 break;
             }
-        } while (rand() % 2 < 1);
+        } while (rand() % 3 < 1);
 
         reset_hints();
         reset_possible();
@@ -910,14 +910,17 @@ Game minimize_width(Game game) {
     std::vector<OptimizationResult> res;
     res.emplace_back(game, classify_game(game));
 
-    for (int i = 0; i < 10000; ++i) {
+    const int N = 10000;
+    for (int i = 0; i < N; ++i) {
         auto base = res[rand() % res.size()];
         Game opt = mutate(base.game);
         opt = add_forced_squares(opt);
         OptimizationResult opt_res(opt, classify_game(opt));
 
-        if (opt_res.cls.solved &&
-            opt_res.cls.all.max_width < base.cls.all.max_width) {
+        if (opt_res.cls.solved) {
+            // if (opt_res.score > res[0].score) {
+            //     fprintf(stderr, "%d: %d\n", i, res[0].score);
+            // }
             res.push_back(opt_res);
             sort(res.begin(), res.end(), Cmp());
             if (res.size() > 10) {
@@ -925,6 +928,7 @@ Game minimize_width(Game game) {
             }
         }
     }
+    // fprintf(stderr, "---\n");
 
     return res[0].game;
 }
