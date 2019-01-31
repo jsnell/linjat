@@ -26,6 +26,8 @@ using std::string;
 DEFINE_int32(seed, 1, "RNG seed.");
 DEFINE_int32(puzzle_count, 100, "Number of puzzles to generate.");
 
+DEFINE_string(solve, "",
+              "Solve the puzzle defined in this flag.");
 
 DEFINE_int32(score_cover, 1,
              "Weight given to basic covering deduction rule.");
@@ -61,11 +63,15 @@ public:
 
     using IterationResult = std::pair<DeductionKind, int>;
 
-    Game() {
+    Game(std::string puzzle = "") {
         for (int r = 0; r < H; ++r) {
             border_[r * W] = 1;
         }
-        randomize();
+        if (!puzzle.empty()) {
+            setup_map(puzzle);
+        } else {
+            randomize();
+        }
         reset_hints();
         reset_possible();
         update_possible();
@@ -84,6 +90,25 @@ public:
                 }
             }
         }
+    }
+
+    void setup_map(const std::string& map) {
+        assert(map.size() == W * H);
+
+        int pieces = 0;
+        for (int i = 0; i < H * W; ++i) {
+            if (map[i] == ',') {
+                assert(border_[i]);
+            } else if (map[i] == '.') {
+                forced_[i] = true;
+            } else if (isdigit(map[i])) {
+                int val = map[i] - '0';
+                hints_.emplace_back(i, val);
+                fixed_[i] = piece_mask(pieces++);
+            }
+        }
+
+        assert(pieces == N);
     }
 
     void reset_hints() {
@@ -131,6 +156,29 @@ public:
                 printf("\n");
             }
         }
+    }
+
+    void print_fixed() {
+        int at = 0;
+        for (int r = 0; r < H; ++r) {
+            for (int c = 0; c < W; ++c) {
+                if (!border_[at]) {
+                    if (fixed_[at]) {
+                        printf("%d",
+                               hints_[__builtin_ctz(fixed_[at])].second);;
+                    } else if (forced_[at]) {
+                        printf(".");
+                    } else if (!possible_[at]) {
+                        printf("_");
+                    } else {
+                        printf(" ");
+                    }
+                }
+                ++at;
+            }
+            printf("|\n");
+        }
+        printf("\n");
     }
 
     void print_possible() {
@@ -833,12 +881,17 @@ struct Classification {
     }
 };
 
-Classification classify_game(Game game) {
+Classification classify_game(Game game,
+                             bool print_progress=false) {
     Classification ret;
 
     game.reset_hints();
 
     for (int i = 0; ; ++i) {
+        if (print_progress) {
+            game.print_fixed();
+        }
+
         auto res = game.iterate();
         switch (res.first) {
         case DeductionKind::NONE:
@@ -996,9 +1049,25 @@ Game create_candidate_game() {
     assert(false);
 }
 
+int solve(const std::string& puzzle) {
+    Game game(puzzle);
+    Classification cls = classify_game(game, true);
+
+    printf("{ \"puzzle\": [");
+    game.print_puzzle(true);
+    cls.print("], \"classification\": {", "}");
+    printf("}\n");
+
+    return 0;
+}
+
 int main(int argc, char** argv) {
     google::ParseCommandLineFlags(&argc, &argv, true);
     srand(FLAGS_seed);
+
+    if (!FLAGS_solve.empty()) {
+        return solve(FLAGS_solve);
+    }
 
     for (int j = 0; j < FLAGS_puzzle_count; ++j) {
         Game game = create_candidate_game();
