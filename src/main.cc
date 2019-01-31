@@ -282,12 +282,24 @@ public:
                 return true;
         }
 
+        for (int at = 0; at < W *H; ++at) {
+            if (forced_[at] && !possible_[at]) {
+                return true;
+            }
+        }
+
         return false;
     }
 
     bool solved() {
         for (int piece = 0; piece < N; ++piece) {
             if (orientation_count(piece) != 1) {
+                return false;
+            }
+        }
+
+        for (int at = 0; at < W *H; ++at) {
+            if (forced_[at] && !fixed_[at]) {
                 return false;
             }
         }
