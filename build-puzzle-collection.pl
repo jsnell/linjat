@@ -22,6 +22,7 @@ sub build {
         next if !$accept->($record);
         my $cls = $record->{classification};
         $record->{score} =
+            ($score ? $score->($cls) : 0) +
             $cls->{cover}{depth} +
             $cls->{cant_fit}{depth} +
             $cls->{square}{depth} * 10 +
@@ -54,7 +55,9 @@ sub build {
 
     my @shuffled = shuffle @output;
     if ($add_easy_first) {
-        $shuffled[0] = pop @sorted;
+        for (0..4) {
+            $shuffled[$_] = $sorted[$#sorted * (1 - $_ / 10.0)];
+        }
     }
 
     [@shuffled];
@@ -102,6 +105,7 @@ print encode_json {
             (!$r->{classification}{square}{depth} &&
              !$r->{classification}{dep}{depth})
         }, sub {
+            my $cls = shift;
             $cls->{cant_fit}{depth} * 2
         }, 1),
     # Like easy, but a little larger levels.
@@ -111,6 +115,7 @@ print encode_json {
             (!$r->{classification}{square}{depth} &&
              !$r->{classification}{dep}{depth})
         }, sub {
+            my $cls = shift;
             $cls->{cant_fit}{depth} * 2
         }),
     # Must include some dedeuction based on corners of a
