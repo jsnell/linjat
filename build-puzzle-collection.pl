@@ -100,7 +100,8 @@ print encode_json {
     easy => add_all_done(
         build 9, 6, sub {
             my $r = shift;
-            (!$r->{classification}{square}{depth} &&
+            ($r->{classification}{cover}{depth} > 1 &&
+             !$r->{classification}{square}{depth} &&
              !$r->{classification}{dep}{depth} &&
              !$r->{classification}{one_of}{depth})
         }, sub {
@@ -111,7 +112,8 @@ print encode_json {
     medium => add_all_done(
         build 10, 7, sub {
             my $r = shift;
-            (!$r->{classification}{square}{depth} &&
+            ($r->{classification}{cover}{depth} > 5 &&
+             !$r->{classification}{square}{depth} &&
              !$r->{classification}{dep}{depth} &&
              !$r->{classification}{one_of}{depth})
         }, sub {
