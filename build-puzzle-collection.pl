@@ -106,7 +106,7 @@ print encode_json {
              !$r->{classification}{dep}{depth})
         }, sub {
             my $cls = shift;
-            $cls->{cant_fit}{depth} * 2
+            $cls->{cant_fit}{depth} * 1.25
         }, 1),
     # Like easy, but a little larger levels.
     medium => add_all_done(
@@ -116,7 +116,7 @@ print encode_json {
              !$r->{classification}{dep}{depth})
         }, sub {
             my $cls = shift;
-            $cls->{cant_fit}{depth} * 2
+            $cls->{cant_fit}{depth} * 1.25
         }),
     # Must include some dedeuction based on corners of a
     # rectangle.
