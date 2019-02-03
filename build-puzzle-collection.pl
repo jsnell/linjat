@@ -54,7 +54,7 @@ sub build {
     if ($add_easy_first) {
         for (0..4) {
             my $record = $sorted[$#sorted * (1 - $_ / 10.0)];
-            $output[$_] = $record;
+            $shuffled[$_] = $record;
         }
     }
 
@@ -126,8 +126,8 @@ print encode_json {
         build 11, 8, sub {
             my $r = shift;
             ($r->{classification}{square}{depth} &&
-             !$r->{classification}{dep}{solved} &&
-             !$r->{classification}{one_of}{solved})
+             !$r->{classification}{dep}{depth} &&
+             !$r->{classification}{one_of}{depth})
         }),
     # Everything.
     expert => add_all_done(
