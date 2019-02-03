@@ -36,10 +36,7 @@ sub build {
                  grep { defined $_->{score} } @records;
 
     for my $record (@sorted) {
-        push @output, {
-            puzzle => $record->{puzzle},
-            score => $record->{score}
-        };
+        push @output, $record;
         my $cls = $record->{classification};
         print STDERR join " ", $record->{score},
             $cls->{all}{max_width},
@@ -56,7 +53,8 @@ sub build {
     my @shuffled = shuffle @output;
     if ($add_easy_first) {
         for (0..4) {
-            $shuffled[$_] = $sorted[$#sorted * (1 - $_ / 10.0)];
+            my $record = $sorted[$#sorted * (1 - $_ / 10.0)];
+            $output[$_] = $record;
         }
     }
 
@@ -103,28 +101,31 @@ print encode_json {
         build 9, 6, sub {
             my $r = shift;
             (!$r->{classification}{square}{depth} &&
-             !$r->{classification}{dep}{depth})
+             !$r->{classification}{dep}{depth} &&
+             !$r->{classification}{one_of}{depth})
         }, sub {
             my $cls = shift;
             $cls->{cant_fit}{depth} * 1.25
         }, 1),
     # Like easy, but a little larger levels.
     medium => add_all_done(
-        build 10, 7,, sub {
+        build 10, 7, sub {
             my $r = shift;
             (!$r->{classification}{square}{depth} &&
-             !$r->{classification}{dep}{depth})
+             !$r->{classification}{dep}{depth} &&
+             !$r->{classification}{one_of}{depth})
         }, sub {
             my $cls = shift;
-            $cls->{cant_fit}{depth} * 1.25
-        }),
+            $cls->{cant_fit}{depth} * 1.1
+        }, 1),
     # Must include some dedeuction based on corners of a
     # rectangle.
     hard => add_all_done(
         build 11, 8, sub {
             my $r = shift;
-            (!$r->{classification}{square}{depth} &&
-             !$r->{classification}{dep}{solved})
+            ($r->{classification}{square}{depth} &&
+             !$r->{classification}{dep}{solved} &&
+             !$r->{classification}{one_of}{solved})
         }),
     # Everything.
     expert => add_all_done(
