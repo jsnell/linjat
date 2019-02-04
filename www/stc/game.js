@@ -776,16 +776,40 @@ class Game {
         resize();
     }
 
+    scaleFp(id) {
+        var hc = $(id)
+        var height = hc.height();
+        var width = hc.width();
+
+        function resize() {
+            var scale =
+                Math.min(Math.min(($(window).innerHeight() - 32) / height,
+                                  ($(window).innerWidth() - 32) / width),
+                         1.0);
+            var bc = $("#board-container");
+            hc.css("transform", "scale(" + scale + ")");
+            hc.css("transform-origin", "0 0");
+        }
+        $(window).off("resize");
+        $(window).resize(resize);
+
+        return resize;
+    }
+
     help() {
+        var resize = this.scaleFp("#help-container");
         this.helpContainer.show();
         this.current = this.helpContainer;
         document.location.hash = "help";
+        resize();
     }
 
     about() {
+        var resize = this.scaleFp("#about-container");
         $(this.aboutContainer).show();
         this.current = this.aboutContainer;
         document.location.hash = "about";
+        resize();
     }
 
     back() {
@@ -795,9 +819,11 @@ class Game {
     }
 
     frontPage() {
+        var resize = this.scaleFp("#fp-container");
         document.location.hash = "fp";
         this.fp.show();
         this.current = this.fp;
+        resize();
     }
 
     leaveFrontPage(cb) {
