@@ -90,28 +90,29 @@ class Line {
         if (!handles) {
             if (fromR != r && fromC != c) {
                 return null;
+            } else if (fromR == this.r && fromC == this.c) {
+                ret = [[r, c], [fromR, fromC]];
+            } else {
+                console.log("should not happen");
+                return null;
             }
-            if (fromR == this.r && fromC == this.c) {
-                return [[r, c], [fromR, fromC]];
-            }
-            console.log("should not happen");
-            return null;
-        }
-        if (r != this.r && c != this.c) {
-            return null;
-        }
-        var handle = handles[0];
-        var other = handles[1];
-        var ret;
-        if ((r != other[0]) && (c != other[1])) {
-            ret = [[r, c], [this.r, this.c]];
-        } else if ((r < this.r && other[0] < this.r) ||
-                   (r > this.r && other[0] > this.r) ||
-                   (c < this.c && other[1] < this.c) ||
-                   (c > this.c && other[1] > this.c)) {
-            ret = [[this.r, this.c], other];
         } else {
-            ret = [[r, c], other];
+            if (r != this.r && c != this.c) {
+                return null;
+            }
+            var handle = handles[0];
+            var other = handles[1];
+            var ret;
+            if ((r != other[0]) && (c != other[1])) {
+                ret = [[r, c], [this.r, this.c]];
+            } else if ((r < this.r && other[0] < this.r) ||
+                       (r > this.r && other[0] > this.r) ||
+                       (c < this.c && other[1] < this.c) ||
+                       (c > this.c && other[1] > this.c)) {
+                ret = [[this.r, this.c], other];
+            } else {
+                ret = [[r, c], other];
+            }
         }
 
         var self = this;
