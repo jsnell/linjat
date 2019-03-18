@@ -164,21 +164,22 @@ public:
             for (int c = 0; c < W; ++c) {
                 if (!border_[at]) {
                     if (fixed_[at]) {
-                        printf("%d",
-                               hints_[__builtin_ctz(fixed_[at])].second);;
+                        fprintf(stderr,
+                                "%d",
+                                hints_[__builtin_ctz(fixed_[at])].second);;
                     } else if (forced_[at]) {
-                        printf(".");
+                        fprintf(stderr, ".");
                     } else if (!possible_[at]) {
-                        printf("_");
+                        fprintf(stderr, "_");
                     } else {
-                        printf(" ");
+                        fprintf(stderr, " ");
                     }
                 }
                 ++at;
             }
-            printf("|\n");
+            fprintf(stderr, "|\n");
         }
-        printf("\n");
+        fprintf(stderr, "\n");
     }
 
     void print_possible() {
@@ -222,6 +223,60 @@ public:
             }
             printf("\n");
         }
+    }
+
+    void print_json(const char* extra_json) {
+        fprintf(stderr, "{%s\"height\":%d, \"width\":%d, \"lines\":[\n",
+                extra_json, H, W -1);
+        for (int piece = 0; piece < N; ++piece) {
+            int at = hints_[piece].first;
+            int value = hints_[piece].second;
+            int r = at / W, c = at % W;
+            int minr = r, maxr = r, minc = c, maxc = c;
+            for (int at = 0; at < W * H; ++at) {
+                if (fixed_[at] == piece_mask(piece)) {
+                    minr = std::min(minr, at / W);
+                    maxr = std::max(maxr, at / W);
+                    minc = std::min(minc, at % W);
+                    maxc = std::max(maxc, at % W);
+                }
+            }
+
+            int valid_o = valid_orientation_[piece];
+            bool have_vertical = false, have_horizontal = false;
+            for (int o = 0; o < value * 2; ++o) {
+                if (valid_o & (1 << o)) {
+                    if (o & 1) {
+                        have_vertical = true;
+                    } else {
+                        have_horizontal = true;
+                    }
+                }
+            }
+
+            fprintf(stderr,
+                    "{\"r\":%d,\"c\":%d,\"value\":\"%d\",",
+                    r, c - 1, value);
+            if (have_vertical != have_horizontal) {
+                fprintf(stderr,
+                        "\"hz\":%d,"
+                        "\"minr\":%d,\"minc\":%d,\"maxr\":%d,\"maxc\":%d,\n",
+                        have_horizontal,
+                        minr, minc - 1,
+                        maxr, maxc - 1);
+            }
+            fprintf(stderr,
+                    "},\n");
+        }
+        fprintf(stderr, "],\"dots\":[\n");
+        for (int at = 0; at < W * H; ++at) {
+            if (forced_[at]) {
+                fprintf(stderr,
+                        "{\"r\":%d,\"c\":%d},\n", at / W, at % W - 1);
+            }
+        }
+        fprintf(stderr, "],\n");
+        fprintf(stderr, "},\n");
     }
 
     void reset_possible() {
@@ -886,10 +941,12 @@ Classification classify_game(Game game,
     Classification ret;
 
     game.reset_hints();
+    const char* extra_json = "";
 
     for (int i = 0; ; ++i) {
         if (print_progress) {
-            game.print_fixed();
+            // game.print<x_fixed();
+            game.print_json(extra_json);
         }
 
         auto res = game.iterate();
@@ -897,26 +954,31 @@ Classification classify_game(Game game,
         case DeductionKind::NONE:
             return ret;
         case DeductionKind::COVER:
+            extra_json = "\"type\":\"cover\",";
             ret.cover.depth++;
             ret.cover.max_width = std::max(ret.cover.max_width,
                                            res.second);
             break;
         case DeductionKind::CANT_FIT:
+            extra_json = "\"type\":\"fit\",";
             ret.cant_fit.depth++;
             ret.cant_fit.max_width = std::max(ret.cant_fit.max_width,
                                               res.second);
             break;
         case DeductionKind::SQUARE:
+            extra_json = "\"type\":\"square\",";
             ret.square.depth++;
             ret.square.max_width = std::max(ret.square.max_width,
                                             res.second);
             break;
         case DeductionKind::DEPENDENCY:
+            extra_json = "\"type\":\"dep\",";
             ret.dep.depth++;
             ret.dep.max_width = std::max(ret.dep.max_width,
                                          res.second);
             break;
         case DeductionKind::ONE_OF:
+            extra_json = "\"type\":\"oneof\",";
             ret.one_of.depth++;
             ret.one_of.max_width = std::max(ret.one_of.max_width,
                                            res.second);
@@ -927,6 +989,9 @@ Classification classify_game(Game game,
                                      res.second);
 
         if (game.solved()) {
+            if (print_progress) {
+                game.print_json(extra_json);
+            }
             ret.solved = true;
             break;
         }
