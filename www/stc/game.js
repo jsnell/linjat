@@ -16,8 +16,14 @@ class Line {
         this.elem.addClass("line");
 
         this.setStyle();
+        this.transposed = false;
 
         this.dragLeftStartSquare = false;
+    }
+
+    transpose() {
+        this.transposed = !this.transposed;
+        this.setStyle();
     }
 
     setStyle() {
@@ -48,13 +54,21 @@ class Line {
         if (h1[0] > h2[0] || h1[1] > h2[1]) {
             return this.setLineStyle(h2, h1);
         }
-        this.elem.css("top", h1[0] * cellSize + 4);
-        this.elem.css("left", h1[1] * cellSize + 4);        
 
         var height = (1 + Math.abs(h1[0] - h2[0]));
         var width = (1 + Math.abs(h1[1] - h2[1]));
-        this.elem.css("height", cellSize * height - 8);
-        this.elem.css("width", cellSize * width - 8);
+        if (this.transposed) {
+            this.elem.css("top", h1[1] * cellSize + 4);
+            this.elem.css("left", h1[0] * cellSize + 4);
+            this.elem.css("height", cellSize * width - 8);
+            this.elem.css("width", cellSize * height - 8);
+        } else {
+            this.elem.css("top", h1[0] * cellSize + 4);
+            this.elem.css("left", h1[1] * cellSize + 4);
+            this.elem.css("height", cellSize * height - 8);
+            this.elem.css("width", cellSize * width - 8);
+        }
+
 
         this.length = Math.max(width, height);
 
@@ -200,9 +214,21 @@ class Cell {
         this.r = r;
         this.c = c;
         this.elem = elem;
+        this.transposed = false;
 
         elem.css("top", r * cellSize);
         elem.css("left", c * cellSize);
+    }
+
+    transpose() {
+        this.transposed = !this.transposed;
+        if (this.transposed) {
+            this.elem.css("top", this.c * cellSize);
+            this.elem.css("left", this.r * cellSize);
+        } else {
+            this.elem.css("top", this.r * cellSize);
+            this.elem.css("left", this.c * cellSize);
+        }
     }
 
     setStyle() {
@@ -263,6 +289,15 @@ class Grid {
         this.dragLine = null;
 
         return { width: grid[0].length, height: grid.length };
+    }
+
+    transpose() {
+        this.eachCell(function(cell) {
+            cell.transpose();
+        });
+        this.eachLine(function(line) {
+            line.transpose();
+        });
     }
 
     at(r, c) {
@@ -756,6 +791,10 @@ class Game {
         }
 
         function resize() {
+            if (($(window).innerHeight() < $(window).innerWidth()) !=
+                (board.height() < board.width())) {
+                game.transpose();
+            }                
             var scale =
                 Math.min(Math.min(($(window).innerHeight() - 64 - $("#controls").height()) / height,
                                   ($(window).innerWidth() - 32) / width),
@@ -774,6 +813,13 @@ class Game {
 
         this.main.show();
         resize();
+    }
+
+    transpose() {
+        this.grid.transpose();
+        var w = this.board.width();
+        this.board.width(this.board.height());
+        this.board.height(w);
     }
 
     scaleFp(id) {
