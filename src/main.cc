@@ -511,6 +511,8 @@ private:
                                    possible_[at] |= mask;
                                    return true;
                                });
+                } else {
+                    valid_orientation_[piece] &= ~(1 << o);
                 }
             }
         }
