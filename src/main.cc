@@ -42,6 +42,9 @@ DEFINE_int32(score_one_of, 1,
              "Weight given to dependent squares deduction rule.");
 DEFINE_int32(score_max_width, -1,
              "Weight given to width of solution tree.");
+DEFINE_int32(score_single_solution, -1,
+             "Weight given to being able to cheat by knowing the "
+             "puzzle has exactly one solution.");
 
 enum DeductionKind {
     NONE = 0,
@@ -50,6 +53,7 @@ enum DeductionKind {
     SQUARE = 3,
     DEPENDENCY = 4,
     ONE_OF = 5,
+    SINGLE_SOLUTION = 6,
 };
 
 class Game {
@@ -287,17 +291,29 @@ public:
 
     IterationResult iterate() {
         reset_possible();
+
         {
             update_possible();
             int count = update_forced_coverage();
             if (count) {
                 return { DeductionKind::COVER, count };
             }
+
+            // Put this after forced_coverage, since it's not interesting
+            // if abusing knowledge of a single solution gives just the
+            // same deduction as the trivial rule.
+            count = update_knowledge_of_single_solution();
+            if (count) {
+                update_forced_coverage();
+                return { DeductionKind::SINGLE_SOLUTION, count };
+            }
+
             count = update_cant_fit();
             if (count) {
                 return { DeductionKind::CANT_FIT, count };
             }
         }
+
 
         {
             update_square();
@@ -615,6 +631,96 @@ private:
         return true;
     }
 
+    int update_knowledge_of_single_solution() {
+        int count = 0;
+        for (int piece = 0; piece < N; ++piece) {
+            count += find_knowledge_of_single_solution(piece);
+        }
+        return count;
+    }
+
+    int find_knowledge_of_single_solution(int piece) {
+        // Given a piece P, split the valid orientations into two
+        // groups.  Those where P overlaps with either a dot or a
+        // valid orientation of some other piece (have information),
+        // and those where it doesn't (no information).
+        //
+        // If there are multiple "no information" orientations, a
+        // level generator using a single solution can't possibly
+        // distinguish between them. Any squares covered by all of the
+        // "have information" orientations must therefore be part
+        // of the solution.
+
+        DepMask have_information_union;
+        int have_information_count = 0;
+        int no_information_count = 0;
+
+        // Iterate through all orientations of the piece. Look how many
+        // match orientation A from the intro, how many B/C.
+        int at = hints_[piece].first;
+        int size = hints_[piece].second;
+        int valid_o = valid_orientation_[piece];
+        for (int o = 0; o < size * 2; ++o) {
+            if (valid_o & (1 << o)) {
+                int offset = (size - 1) - (o >> 1);
+                int step = ((o & 1) ? W : 1);
+                DepMask covered;
+                bool overlaps_forced = false;
+                bool cant_overlap_with_other_pieces = true;
+                bool ok = do_squares(
+                    size, at + offset * -step, step,
+                    [&] (int at) {
+                        covered.set(at);
+                        if (!fixed_[at]) {
+                            if (forced_[at])
+                                overlaps_forced = true;
+                            if (possible_count(at) != 1)
+                                cant_overlap_with_other_pieces = false;
+                        } else if (fixed_[at] != piece_mask(piece)) {
+                            return false;
+                        }
+                        return true;
+                    });
+                if (!ok) {
+                    continue;
+                }
+                if (overlaps_forced) {
+                    if (have_information_count++) {
+                        have_information_union &= covered;
+                    } else {
+                        have_information_union = covered;
+                    }
+                } else if (!overlaps_forced &&
+                           cant_overlap_with_other_pieces) {
+                    no_information_count++;
+                }
+            }
+        }
+
+        if (no_information_count > 1) {
+            int update_count = 0;
+            for (int at = 0; at < W * H; ++at) {
+                if (fixed_[at])
+                    continue;
+                if (have_information_union[at]) {
+                    fixed_[at] = piece_mask(piece);
+                    update_not_possible(at, piece_mask(piece), piece);
+                    ++update_count;
+                }
+            }
+
+            // printf("%d %d %d %d => %d\n",
+            //        piece,
+            //        at,
+            //        have_information_count,
+            //        no_information_count,
+            //        update_count);
+
+            return update_count;
+        }
+        return 0;
+    }
+
     // Find dependencies. E.g.:
     //
     //   53.. 4
@@ -920,6 +1026,7 @@ struct Classification {
     SolutionMetaData square;
     SolutionMetaData cant_fit;
     SolutionMetaData cover;
+    SolutionMetaData single_solution;
 
     bool solved = false;
 
@@ -931,7 +1038,8 @@ struct Classification {
         dep.print("\"dep\": {", "}, ");
         square.print("\"square\": {", "}, ");
         cant_fit.print("\"cant_fit\": {", "}, ");
-        cover.print("\"cover\": {", "}");
+        cover.print("\"cover\": {", "},");
+        single_solution.print("\"single-solution\": {", "}");
         printf("%s", suffix.c_str());
     }
 };
@@ -982,6 +1090,13 @@ Classification classify_game(Game game,
             ret.one_of.depth++;
             ret.one_of.max_width = std::max(ret.one_of.max_width,
                                            res.second);
+            break;
+        case DeductionKind::SINGLE_SOLUTION:
+            extra_json = "\"type\":\"single-solution\",";
+            ret.single_solution.depth++;
+            ret.single_solution.max_width =
+                std::max(ret.single_solution.max_width,
+                         res.second);
             break;
         }
         ret.all.depth++;
