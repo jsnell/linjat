@@ -2,6 +2,7 @@
 
 use strict;
 use JSON;
+use List::Util qw(min max);
 
 # Fixup the almost-json.
 my $data = join '', <>;
@@ -44,12 +45,16 @@ sub draw_board {
             my $val = "$minx $miny $maxx $maxy";
             my $width = 5;
             my $color = '#f00';
+            my $dash = '';
             if (!defined $prev{$key} or $prev{$key} ne $val) {
-                # $width = 5;
-                $color = '#0f0';
+                $dash = '3,3';
                 $prev{$key} = $val;
             }
-            print "<line x1='$minx' y1='$miny' x2='$maxx' y2='$maxy' stroke-width='$width' stroke='$color' stroke-opacity='0.5'/>";
+            if ($line->{value} == max($line->{maxr} - $line->{minr},
+                                      $line->{maxc} - $line->{minc}) + 1) {
+                $color = '#4c4';
+            }
+            print "<line x1='$minx' y1='$miny' x2='$maxx' y2='$maxy' stroke-width='$width' stroke='$color' stroke-dasharray='$dash' stroke-opacity='0.75'/>";
         }
     }
     for my $dot (@{$board->{dots}}) {
@@ -74,7 +79,7 @@ for my $board (@{$boards}) {
     print "<g transform='translate($x_offset, $y_offset)'>";
     my ($w, $h) = draw_board $board;
     $x_offset += 5 + $w;
-    if ($x_offset > 1400) {
+    if ($x_offset > 1600) {
         $x_offset = 5;
         $y_offset += 16 + $h;
     }
