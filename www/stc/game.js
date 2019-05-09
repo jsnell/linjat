@@ -791,19 +791,32 @@ class Game {
         }
 
         function resize() {
-            if (($(window).innerHeight() < $(window).innerWidth()) !=
+            var win_height = $(window).innerHeight();
+            var win_width = $(window).innerWidth();
+            if (board.height() != board.width() &&
+                (win_height < win_width) !=
                 (board.height() < board.width())) {
+                var tmp = width;
+                width = height;
+                height = tmp;
                 game.transpose();
-            }                
+            }
+            if (win_height < 500) {
+                var controls = $("#controls");
+                var scale = Math.max(win_height / 500,
+                                     0.1);
+                controls.css("transform", "scale(" + scale + ")");
+                controls.css("transform-origin", "0 0");
+            }
             var scale =
-                Math.min(Math.min(($(window).innerHeight() - 64 - $("#controls").height()) / height,
-                                  ($(window).innerWidth() - 32) / width),
+                Math.min(Math.min((win_height - 64 - $("#controls").height()) / height,
+                                  (win_width - 32) / width),
                          2.5);
             var bc = $("#board-container");
             bc.css("width", (board.width() || 0) * scale);
             bc.css("height", (board.height() || 0) * scale);
             bc.css("left", (game.main.width() - bc.width()) / 2);
-            game.main.css("left", ($(window).innerWidth() - game.main.width()) / 2);
+            game.main.css("left", (win_width - game.main.width()) / 2);
 
             board.css("transform", "scale(" + scale + ")");
             board.css("transform-origin", "0 0");
