@@ -42,8 +42,11 @@ DEFINE_int32(score_one_of, 1,
              "Weight given to dependent squares deduction rule.");
 DEFINE_int32(score_max_width, -1,
              "Weight given to width of solution tree.");
-DEFINE_int32(score_single_solution, -1,
-             "Weight given to being able to cheat by knowing the "
+DEFINE_int32(score_single_solution, -50,
+             "Weight given to being able to 'cheat' by knowing the "
+             "puzzle has exactly one solution.");
+DEFINE_int32(score_uncontested_no_cover, -1,
+             "Weight given to being able to 'cheat' by knowing the "
              "puzzle has exactly one solution.");
 
 enum DeductionKind {
@@ -54,6 +57,7 @@ enum DeductionKind {
     DEPENDENCY = 4,
     ONE_OF = 5,
     SINGLE_SOLUTION = 6,
+    UNCONTESTED_NO_COVER = 7,
 };
 
 class Game {
@@ -294,7 +298,14 @@ public:
 
         {
             update_possible();
-            int count = update_forced_coverage();
+            int count;
+
+            count = update_uncontested_no_cover();
+            if (count) {
+                return { DeductionKind::UNCONTESTED_NO_COVER, count };
+            }
+
+            count = update_forced_coverage();
             if (count) {
                 return { DeductionKind::COVER, count };
             }
@@ -366,16 +377,17 @@ public:
         }
     }
 
-    bool force_one_square() {
+    bool force_one_square(int possible_mask = (1 << N) - 1) {
         int best_at = -1;
         int best_score = -1;
         int best_score_count;
 
         for (int at = 0; at < W *H; ++at) {
-            if (fixed_[at] || forced_[at] || !possible_[at]) {
+            if (fixed_[at] || forced_[at] ||
+                !(possible_[at] & possible_mask)) {
                 continue;
             }
-            int score = orig_possible_count(at) - possible_count(at);
+            int score = orig_possible_count(at) + possible_count(at);
             if (score > best_score) {
                 best_score = score;
                 best_at = at;
@@ -393,6 +405,18 @@ public:
             return true;
         }
         return false;
+    }
+
+    bool force_if_uncontested() {
+        reset_possible();
+        update_possible();
+        for (int piece = 0; piece < N; ++piece) {
+            if (!find_uncontested_no_cover(piece))
+                continue;
+            assert(force_one_square(piece_mask(piece)));
+        }
+
+        return true;
     }
 
     bool impossible() {
@@ -631,6 +655,94 @@ private:
         }
 
         return true;
+    }
+
+    int update_uncontested_no_cover() {
+        int count = 0;
+        for (int piece = 0; piece < N; ++piece) {
+            int omask = find_uncontested_no_cover(piece);
+            if (!omask)
+                continue;
+            // Found a viable uncontested orientation for the piece.
+            valid_orientation_[piece] = omask;
+            {
+                int o = __builtin_ctzl(omask);
+                int at = hints_[piece].first;
+                int size = hints_[piece].second;
+                int offset = (size - 1) - (o >> 1);
+                int step = ((o & 1) ? W : 1);
+                do_squares(
+                    size, at + offset * -step, step,
+                    [&] (int at) {
+                        if (!fixed_[at]) {
+                            fixed_[at] = piece_mask(piece);
+                            update_not_possible(at,
+                                                piece_mask(piece),
+                                                piece);
+                        }
+                        return true;
+                    });
+            }
+            return 1;
+        }
+        return count;
+    }
+
+    int find_uncontested_no_cover(int piece) {
+        // If a piece can't be used to cover any more dots, see if there
+        // are any totally uncontested orientations. If there is one,
+        // just choose it as the actual orientation.
+
+        Mask mask = piece_mask(piece);
+        bool have_contested = false;
+
+        // Bail out early if the piece can still be used to cover a
+        // dot.
+        for (int at = 0; at < W * H; ++at) {
+            if (!fixed_[at] && forced_[at] &&
+                (possible_[at] & mask)) {
+                return 0;
+            }
+            if ((possible_[at] & mask) && possible_[at] != mask) {
+                have_contested = true;
+            }
+        }
+
+        // If none of the orientations are contested, this is an
+        // uninteresting case.
+        if (!have_contested) {
+            return 0;
+        }
+
+        // Iterate through all orientations of the piece. Look how many
+        // match orientation A from the intro, how many B/C.
+        int at = hints_[piece].first;
+        int size = hints_[piece].second;
+        int valid_o = valid_orientation_[piece];
+        for (int o = 0; o < size * 2; ++o) {
+            if (valid_o & (1 << o)) {
+                int offset = (size - 1) - (o >> 1);
+                int step = ((o & 1) ? W : 1);
+                bool non_fixed = false;
+                // In this orientation either all squares are already
+                // covered by this piece, or can only be covered by
+                // this piece.
+                bool ok = do_squares(
+                    size, at + offset * -step, step,
+                    [&] (int at) {
+                        if (fixed_[at]) {
+                            return fixed_[at] == mask;
+                        }
+                        non_fixed = true;
+                        return possible_[at] ==  mask;
+                    });
+                if (ok && non_fixed) {
+                    return 1 << o;
+                }
+            }
+        }
+
+        return 0;
     }
 
     int update_knowledge_of_single_solution() {
@@ -992,6 +1104,7 @@ private:
 
 Game add_forced_squares(Game game) {
     for (int i = 0; i < 100; ++i) {
+        game.force_if_uncontested();
         auto res = game.iterate();
         if (res.first == DeductionKind::NONE) {
             if (!game.force_one_square()) {
@@ -1029,6 +1142,7 @@ struct Classification {
     SolutionMetaData cant_fit;
     SolutionMetaData cover;
     SolutionMetaData single_solution;
+    SolutionMetaData uncontested_no_cover;
 
     bool solved = false;
 
@@ -1041,7 +1155,8 @@ struct Classification {
         square.print("\"square\": {", "}, ");
         cant_fit.print("\"cant_fit\": {", "}, ");
         cover.print("\"cover\": {", "},");
-        single_solution.print("\"single-solution\": {", "}");
+        single_solution.print("\"single-solution\": {", "},");
+        uncontested_no_cover.print("\"uncontested-no-cover\": {", "}");
         printf("%s", suffix.c_str());
     }
 };
@@ -1055,7 +1170,6 @@ Classification classify_game(Game game,
 
     for (int i = 0; ; ++i) {
         if (print_progress) {
-            // game.print<x_fixed();
             game.print_json(extra_json);
         }
 
@@ -1100,6 +1214,13 @@ Classification classify_game(Game game,
                 std::max(ret.single_solution.max_width,
                          res.second);
             break;
+        case DeductionKind::UNCONTESTED_NO_COVER:
+            extra_json = "\"type\":\"uncontested-no-cover\",";
+            ret.uncontested_no_cover.depth++;
+            ret.uncontested_no_cover.max_width =
+                std::max(ret.uncontested_no_cover.max_width,
+                         res.second);
+            break;
         }
         ret.all.depth++;
         ret.all.max_width = std::max(ret.all.max_width,
@@ -1138,6 +1259,8 @@ struct OptimizationResult {
             (cls.square.depth * FLAGS_score_square) +
             (cls.dep.depth * FLAGS_score_dep) +
             (cls.one_of.depth * FLAGS_score_one_of) +
+            (cls.single_solution.depth * FLAGS_score_single_solution) +
+            (cls.uncontested_no_cover.depth * FLAGS_score_uncontested_no_cover) +
             (cls.all.max_width * FLAGS_score_max_width);
     }
 
@@ -1186,7 +1309,9 @@ Game optimize_game(Game game) {
     Game opt = minimize_width(game);
     Classification opt_cls = classify_game(opt);
 
-    fprintf(stderr, "%d/%d [%d/%d/%d/%d/%d] -> %d/%d [%d/%d/%d/%d/%d]\n",
+    fprintf(stderr,
+            "%d/%d [%d/%d/%d/%d/%d/%d/%d] -> %d/%d "
+            "[%d/%d/%d/%d/%d/%d/%d]\n",
             cls.all.max_width,
             cls.all.depth,
             cls.one_of.depth,
@@ -1194,13 +1319,17 @@ Game optimize_game(Game game) {
             cls.square.depth,
             cls.cant_fit.depth,
             cls.cover.depth,
+            cls.single_solution.depth,
+            cls.uncontested_no_cover.depth,
             opt_cls.all.max_width,
             opt_cls.all.depth,
             opt_cls.one_of.depth,
             opt_cls.dep.depth,
             opt_cls.square.depth,
             opt_cls.cant_fit.depth,
-            opt_cls.cover.depth);
+            opt_cls.cover.depth,
+            opt_cls.single_solution.depth,
+            opt_cls.uncontested_no_cover.depth);
 
     return opt;
 }
