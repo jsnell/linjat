@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl -lw
 
 use strict;
 
@@ -17,7 +17,7 @@ my $h = scalar @{$puzzle->{puzzle}};
 my $p = ("$str") =~ tr/0-9//;
 
 die if system "MAP_HEIGHT=$h MAP_WIDTH=$w PIECES=$p cmake . && make ";
-system qq(bin/mklinjat --solve="$str");
+my $res = qx(bin/mklinjat --solve="$str" --solve_progress_file=foo);
 
     
     

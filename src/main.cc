@@ -28,6 +28,8 @@ DEFINE_int32(puzzle_count, 100, "Number of puzzles to generate.");
 
 DEFINE_string(solve, "",
               "Solve the puzzle defined in this flag.");
+DEFINE_string(solve_progress_file, "",
+              "Print solver state after each iteration in this file.");
 
 DEFINE_int32(score_cover, 1,
              "Weight given to basic covering deduction rule.");
@@ -233,8 +235,8 @@ public:
         }
     }
 
-    void print_json(const char* extra_json) {
-        fprintf(stderr, "{%s\"height\":%d, \"width\":%d, \"lines\":[\n",
+    void print_json(FILE* f, const char* extra_json) {
+        fprintf(f, "{%s\"height\":%d, \"width\":%d, \"lines\":[\n",
                 extra_json, H, W -1);
         for (int piece = 0; piece < N; ++piece) {
             int at = hints_[piece].first;
@@ -262,29 +264,29 @@ public:
                 }
             }
 
-            fprintf(stderr,
+            fprintf(f,
                     "{\"r\":%d,\"c\":%d,\"value\":\"%d\",",
                     r, c - 1, value);
             if (have_vertical != have_horizontal) {
-                fprintf(stderr,
+                fprintf(f,
                         "\"hz\":%d,"
                         "\"minr\":%d,\"minc\":%d,\"maxr\":%d,\"maxc\":%d,\n",
                         have_horizontal,
                         minr, minc - 1,
                         maxr, maxc - 1);
             }
-            fprintf(stderr,
+            fprintf(f,
                     "},\n");
         }
-        fprintf(stderr, "],\"dots\":[\n");
+        fprintf(f, "],\"dots\":[\n");
         for (int at = 0; at < W * H; ++at) {
             if (forced_[at]) {
-                fprintf(stderr,
+                fprintf(f,
                         "{\"r\":%d,\"c\":%d},\n", at / W, at % W - 1);
             }
         }
-        fprintf(stderr, "],\n");
-        fprintf(stderr, "},\n");
+        fprintf(f, "],\n");
+        fprintf(f, "},\n");
     }
 
     void reset_possible() {
@@ -1162,7 +1164,7 @@ struct Classification {
 };
 
 Classification classify_game(Game game,
-                             bool print_progress=false) {
+                             FILE* print_progress=NULL) {
     Classification ret;
 
     game.reset_hints();
@@ -1170,7 +1172,7 @@ Classification classify_game(Game game,
 
     for (int i = 0; ; ++i) {
         if (print_progress) {
-            game.print_json(extra_json);
+            game.print_json(print_progress, extra_json);
         }
 
         auto res = game.iterate();
@@ -1228,7 +1230,7 @@ Classification classify_game(Game game,
 
         if (game.solved()) {
             if (print_progress) {
-                game.print_json(extra_json);
+                game.print_json(print_progress, extra_json);
             }
             ret.solved = true;
             break;
@@ -1362,7 +1364,11 @@ Game create_candidate_game() {
 
 int solve(const std::string& puzzle) {
     Game game(puzzle);
-    Classification cls = classify_game(game, true);
+    FILE* fp = NULL;
+    if (!FLAGS_solve_progress_file.empty()) {
+        fp = fopen(FLAGS_solve_progress_file.c_str(), "w");
+    }
+    Classification cls = classify_game(game, fp);
 
     printf("{ \"puzzle\": [");
     game.print_puzzle(true);
