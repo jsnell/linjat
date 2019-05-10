@@ -93,7 +93,23 @@ sub add_all_done {
      }]
 }
 
-print encode_json {
+sub merge {
+    my ($map) = @_;
+    my @merge_spec = map {
+        [m{(.*?):(.*)}g];
+    } @ARGV;
+
+    for my $spec (@merge_spec) {
+        my $key = $spec->[0];
+        my $override = decode_json scalar read_file $spec->[1];
+        
+        $map->{$key} = $override->{$key};
+    }
+
+    $map;
+}
+
+print encode_json merge {
     # Hand-built examples with explanatory text
     tutorial => [tutorial],
     # Easy mode, must be solvable with just the rote rule.
