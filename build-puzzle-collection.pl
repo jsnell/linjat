@@ -27,8 +27,10 @@ sub build {
             $cls->{cant_fit}{depth} +
             $cls->{square}{depth} * 10 +
             $cls->{dep}{depth} * 50 +
-            ($cls->{one_of}{depth} // 0) * 20 -
-            $cls->{all}{max_width} * 2;
+            ($cls->{one_of}{depth} // 0) * 20 +
+            ($cls->{"single-solution"}{depth} // 0) * -200 +
+            ($cls->{"uncontested-no-cover"}{depth} // 0) * -50 +
+            $cls->{all}{max_width} * -2;
     }
 
     my @output = ();
