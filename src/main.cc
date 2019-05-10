@@ -25,11 +25,16 @@ using std::string;
 
 DEFINE_int32(seed, 1, "RNG seed.");
 DEFINE_int32(puzzle_count, 100, "Number of puzzles to generate.");
+DEFINE_int32(optimize_iterations, 10000,
+             "Number of iterations done during optimization.");
 
 DEFINE_string(solve, "",
               "Solve the puzzle defined in this flag.");
 DEFINE_string(solve_progress_file, "",
               "Print solver state after each iteration in this file.");
+DEFINE_string(candidate_progress_file, "",
+              "Print solver state after each candidate-generation "
+              "iteration in this file.");
 
 DEFINE_int32(score_cover, 1,
              "Weight given to basic covering deduction rule.");
@@ -412,13 +417,15 @@ public:
     bool force_if_uncontested() {
         reset_possible();
         update_possible();
+        bool ret = false;
         for (int piece = 0; piece < N; ++piece) {
             if (!find_uncontested_no_cover(piece))
                 continue;
             assert(force_one_square(piece_mask(piece)));
+            ret = true;
         }
 
-        return true;
+        return ret;
     }
 
     bool impossible() {
@@ -1104,14 +1111,21 @@ private:
     bool border_[H * W] = { 0 };
 };
 
-Game add_forced_squares(Game game) {
+Game add_forced_squares(Game game, FILE* fp) {
+    if (fp)
+        game.print_json(fp, "");
     for (int i = 0; i < 100; ++i) {
-        game.force_if_uncontested();
+        if (game.force_if_uncontested() && fp)
+            game.print_json(fp, "\"type\":\"ambiguate\",");
         auto res = game.iterate();
+        if (fp)
+            game.print_json(fp, "");
         if (res.first == DeductionKind::NONE) {
             if (!game.force_one_square()) {
                 break;
             }
+            if (fp)
+                game.print_json(fp, "\"type\":\"add dot\",");
         }
         if (game.impossible()) {
             break;
@@ -1272,6 +1286,10 @@ struct OptimizationResult {
 };
 
 Game minimize_width(Game game) {
+    const int N = FLAGS_optimize_iterations;
+    if (!N)
+        return game;
+
     struct Cmp {
         bool operator() (const OptimizationResult& a,
                          const OptimizationResult& b) {
@@ -1279,14 +1297,27 @@ Game minimize_width(Game game) {
         }
     };
 
+    FILE* fp = nullptr;
+    if (!FLAGS_solve_progress_file.empty()) {
+        fp = fopen(FLAGS_solve_progress_file.c_str(), "w");
+    }
+
     std::vector<OptimizationResult> res;
     res.emplace_back(game, classify_game(game));
 
-    const int N = 10000;
+    char buf[256];
+    auto extra_json = [&] (int iter, int score) {
+        sprintf(buf, "\"score\":%d,\"iter\":%d,", score, iter);
+        return buf;
+    };
+    if (fp) {
+        game.print_json(fp, extra_json(0, res[0].score));
+    }
+
     for (int i = 0; i < N; ++i) {
         auto base = res[rand() % res.size()];
         Game opt = mutate(base.game);
-        opt = add_forced_squares(opt);
+        opt = add_forced_squares(opt, NULL);
         OptimizationResult opt_res(opt, classify_game(opt));
 
         if (opt_res.cls.solved) {
@@ -1294,6 +1325,10 @@ Game minimize_width(Game game) {
             //     fprintf(stderr, "%d: %d\n", i, res[0].score);
             // }
             res.push_back(opt_res);
+            if (fp &&
+                opt_res.score > res[0].score) {
+                opt.print_json(fp, extra_json(i, res[0].score));
+            }
             sort(res.begin(), res.end(), Cmp());
             if (res.size() > 10) {
                 res.pop_back();
@@ -1339,9 +1374,17 @@ Game optimize_game(Game game) {
 
 // Find a game with the given parameters that can be solved.
 Game create_candidate_game() {
+
     for (int i = 0; i < 1000000; ++i) {
+        FILE* fp = nullptr;
+        if (!FLAGS_candidate_progress_file.empty()) {
+            fp = fopen(FLAGS_candidate_progress_file.c_str(), "w");
+        }
+
         Game game;
-        game = add_forced_squares(game);
+        game = add_forced_squares(game, fp);
+        if (fp)
+            fclose(fp);
 
         if (game.solved()) {
             Classification cls = classify_game(game);

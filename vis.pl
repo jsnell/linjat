@@ -23,6 +23,12 @@ sub draw_board {
     if ($board->{type}) {
         print "<text x='$hwidth' y='18' text-anchor='middle' fill='black' class='number'>$board->{type}</text>";
     }
+    if (exists $board->{iter}) {
+        print "<text x='5' y='18' text-anchor='left' fill='black' class='snumber'>Iteration: $board->{iter}</text>";
+    }
+    if (exists $board->{score}) {
+        print "<text x='$hwidth' y='18' text-anchor='middle' fill='black' class='snumber'>Score: $board->{score}</text>";
+    }
     print "<g transform='translate(5, 21)'>";    
     print "<rect x='0' y='0' height='$height' width='$width' stroke='black' stroke-width='2' fill='white'/>";
     for my $line (@{$board->{lines}}) {
