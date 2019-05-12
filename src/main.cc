@@ -555,15 +555,17 @@ private:
         Mask mask = piece_mask(piece);
         int updated = 0;
 
-        for (int at = 0; at < W * H; ++at) {
-            if (!fixed_[at]) {
-                if ((forced_[at] && possible_[at] == mask)) {
-                    updated = 1;
-                    fixed_[at] = mask;
-                    update_not_possible(at, mask, piece);
-                }
-            }
-        }
+        do_piece_squares(piece,
+                         [&] (int at) {
+                             if (!fixed_[at]) {
+                                 if ((forced_[at] && possible_[at] == mask)) {
+                                     updated = 1;
+                                     fixed_[at] = mask;
+                                     update_not_possible(at, mask, piece);
+                                 }
+                             }
+                             return true;
+                         });
 
         return updated;
     }
@@ -599,15 +601,17 @@ private:
         }
 
         int updated = 0;
-        for (int at = 0; at < W * H; ++at) {
-            if (!fixed_[at]) {
-                if (count[at] == valid_count) {
-                    updated = 1;
-                    fixed_[at] = mask;
-                    update_not_possible(at, mask, piece);
-                }
-            }
-        }
+        do_piece_squares(piece,
+                         [&] (int at) {
+                             if (!fixed_[at]) {
+                                 if (count[at] == valid_count) {
+                                     updated = 1;
+                                     fixed_[at] = mask;
+                                     update_not_possible(at, mask, piece);
+                                 }
+                             }
+                             return true;
+                         });
 
         return updated;
     }
@@ -670,6 +674,52 @@ private:
         return true;
     }
 
+    // Call fun for each square that piece could overlap, in any
+    // orientation.
+    //
+    // Immediately returns false if fun() ever returns false,
+    // otherwise returns true.
+    bool do_piece_squares(int piece,
+                          std::function<bool(int)> fun) {
+        // Equivalent to this:
+#if 0
+        for (int at = 0; at < W * H; ++at) {
+            if (!fun(at))
+                return false;
+        }
+        return true;
+#endif
+
+        int at = hints_[piece].first;
+        // The center-piece.
+        if (!fun(at))
+            return false;
+
+        int size = hints_[piece].second;
+        int r = at / W;
+        int c = at % W;
+        // The column.
+        for (int ri = std::max(0, r - (size - 1));
+             ri < std::min(H, r + size);
+             ++ri) {
+            int at2 = ri * W + c;
+            if (at2 != at)
+                if (!fun(at2))
+                    return false;
+        }
+        // The row.
+        for (int ci = std::max(0, c - (size - 1));
+             ci < std::min(W, c + size);
+             ++ci) {
+            int at2 = r * W + ci;
+            if (at2 != at)
+                if (!fun(at2))
+                    return false;
+        }
+
+        return true;
+    }
+
     int update_uncontested_no_cover() {
         int count = 0;
         for (int piece = 0; piece < N; ++piece) {
@@ -711,14 +761,19 @@ private:
 
         // Bail out early if the piece can still be used to cover a
         // dot.
-        for (int at = 0; at < W * H; ++at) {
-            if (!fixed_[at] && forced_[at] &&
-                (possible_[at] & mask)) {
-                return 0;
-            }
-            if ((possible_[at] & mask) && possible_[at] != mask) {
-                have_contested = true;
-            }
+        if (!do_piece_squares(
+                piece,
+                [&] (int at) {
+                    if (!fixed_[at] && forced_[at] &&
+                        (possible_[at] & mask)) {
+                        return false;
+                    }
+                    if ((possible_[at] & mask) && possible_[at] != mask) {
+                        have_contested = true;
+                    }
+                    return true;
+                })) {
+            return 0;
         }
 
         // If none of the orientations are contested, this is an
@@ -826,22 +881,18 @@ private:
 
         if (no_information_count > 1) {
             int update_count = 0;
-            for (int at = 0; at < W * H; ++at) {
-                if (fixed_[at])
-                    continue;
-                if (have_information_union[at]) {
-                    fixed_[at] = piece_mask(piece);
-                    update_not_possible(at, piece_mask(piece), piece);
-                    ++update_count;
-                }
-            }
-
-            // printf("%d %d %d %d => %d\n",
-            //        piece,
-            //        at,
-            //        have_information_count,
-            //        no_information_count,
-            //        update_count);
+            do_piece_squares(
+                piece,
+                [&] (int at) {
+                    if (fixed_[at])
+                        return true;
+                    if (have_information_union[at]) {
+                        fixed_[at] = piece_mask(piece);
+                        update_not_possible(at, piece_mask(piece), piece);
+                        ++update_count;
+                    }
+                    return true;
+                });
 
             return update_count;
         }
