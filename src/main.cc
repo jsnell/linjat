@@ -99,7 +99,7 @@ public:
                 int at = random() % (W * H);
                 int val = 2 + random() % 4;
                 if (!fixed_[at] && !border_[at]) {
-                    hints_.emplace_back(at, val);
+                    hints_[i] = Hint(at, val);
                     fixed_[at] = piece_mask(i);
                     break;
                 }
@@ -118,7 +118,7 @@ public:
                 forced_[i] = true;
             } else if (isdigit(map[i])) {
                 int val = map[i] - '0';
-                hints_.emplace_back(i, val);
+                hints_[pieces] = Hint(i, val);
                 fixed_[i] = piece_mask(pieces++);
             }
         }
@@ -1157,7 +1157,7 @@ private:
         return rd + cd;
     }
 
-    std::vector<Hint> hints_;
+    std::array<Hint, N> hints_;
     uint16_t valid_orientation_[N] { 0 };
     MaskArray orig_possible_;
     MaskArray possible_ = { 0 };
