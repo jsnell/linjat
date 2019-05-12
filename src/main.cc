@@ -995,7 +995,7 @@ private:
         for (int piece = 0; piece < N; ++piece) {
             int size = hints_[piece].second;
             std::vector<int> covered;
-            for (int at = 0; at < W * H; ++at) {
+            for (int at : PieceIterator(hints_[piece])) {
                 if (!forced_[at] || fixed_[at] ||
                     possible_count(at) != 2)
                     continue;
