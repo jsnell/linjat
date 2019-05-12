@@ -576,6 +576,10 @@ private:
         int valid_count = 0;
         std::array<uint8_t, W*H> count = { 0 };
 
+        if (!valid_o) {
+            return 0;
+        }
+
         for (int o = 0; o < size * 2; ++o) {
             if (valid_o & (1 << o)) {
                 int offset = (size - 1) - (o >> 1);
