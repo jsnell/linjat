@@ -21,13 +21,13 @@ sub draw_board {
     my $hwidth = $width / 2;
 
     if ($board->{type}) {
-        print "<text x='$hwidth' y='18' text-anchor='middle' fill='black' class='number'>$board->{type}</text>";
+        print "<text x='$hwidth' y='18' text-anchor='middle' fill='black' class='text'>$board->{type}</text>";
     }
     if (exists $board->{iter}) {
-        print "<text x='5' y='18' text-anchor='left' fill='black' class='snumber'>Iteration: $board->{iter}</text>";
+        print "<text x='5' y='18' text-anchor='left' fill='black' class='text'>Iteration: $board->{iter}</text>";
     }
     if (exists $board->{score}) {
-        print "<text x='$hwidth' y='18' text-anchor='middle' fill='black' class='snumber'>Score: $board->{score}</text>";
+        print "<text x='$hwidth' y='18' text-anchor='middle' fill='black' class='text'>Score: $board->{score}</text>";
     }
     print "<g transform='translate(5, 21)'>";    
     print "<rect x='0' y='0' height='$height' width='$width' stroke='black' stroke-width='2' fill='white'/>";
@@ -75,8 +75,10 @@ sub draw_board {
 
 print qq(<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
   <style>
-    .number { font: bold 28px sans-serif; }
+    .number { font-size: 28px; }
+    .text { font-size: 16px; }
   </style>
+  <rect width="100%" height="100%" fill="white"></rect>
 );
 
 my $x_offset = 5;

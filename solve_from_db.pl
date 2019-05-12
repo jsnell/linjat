@@ -18,6 +18,8 @@ my $p = ("$str") =~ tr/0-9//;
 
 die if system "MAP_HEIGHT=$h MAP_WIDTH=$w PIECES=$p cmake . && make ";
 my $res = qx(bin/mklinjat --solve="$str" --solve_progress_file=foo);
-
+print $res;
+my $json = decode_json $res;
+print $json->{classification}{'single-solution'}{depth};
     
     

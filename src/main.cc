@@ -1118,14 +1118,15 @@ Game add_forced_squares(Game game, FILE* fp) {
         if (game.force_if_uncontested() && fp)
             game.print_json(fp, "\"type\":\"ambiguate\",");
         auto res = game.iterate();
-        if (fp)
-            game.print_json(fp, "");
         if (res.first == DeductionKind::NONE) {
             if (!game.force_one_square()) {
                 break;
             }
             if (fp)
                 game.print_json(fp, "\"type\":\"add dot\",");
+        } else {
+            if (fp)
+                game.print_json(fp, "");
         }
         if (game.impossible()) {
             break;
