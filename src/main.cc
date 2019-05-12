@@ -525,25 +525,21 @@ private:
 
     void update_possible_for_piece(int piece) {
         Mask mask = piece_mask(piece);
-        int at = hints_[piece].first;
         int size = hints_[piece].second;
         int valid_o = valid_orientation_[piece];
 
         for (int o = 0; o < size * 2; ++o) {
             if (valid_o & (1 << o)) {
-                int offset = (size - 1) - (o >> 1);
-                int step = ((o & 1) ? W : 1);
-                bool ok = do_squares(size, at + offset * -step, step,
-                                     [&] (int at) {
-                                         return (!fixed_[at] ||
-                                                 fixed_[at] == mask);
-                                     });
-                if (ok) {
-                    do_squares(size, at + offset * -step, step,
-                               [&] (int at) {
-                                   possible_[at] |= mask;
-                                   return true;
-                               });
+                int count = 0;
+                for (int at : PieceOrientationIterator(hints_[piece], o)) {
+                    if (!fixed_[at] || fixed_[at] == mask) {
+                        ++count;
+                    }
+                }
+                if (count == size) {
+                    for (int at : PieceOrientationIterator(hints_[piece], o)) {
+                        possible_[at] |= mask;
+                    }
                 } else {
                     valid_orientation_[piece] &= ~(1 << o);
                 }
@@ -572,7 +568,6 @@ private:
 
     int update_cant_fit_for_piece(int piece) {
         Mask mask = piece_mask(piece);
-        int piece_at = hints_[piece].first;
         int size = hints_[piece].second;
         int valid_o = valid_orientation_[piece];
         int valid_count = 0;
@@ -584,18 +579,17 @@ private:
 
         for (int o = 0; o < size * 2; ++o) {
             if (valid_o & (1 << o)) {
-                int offset = (size - 1) - (o >> 1);
-                int step = ((o & 1) ? W : 1);
-                if (do_squares(size, piece_at + offset * -step, step,
-                               [&] (int at) {
-                                   return possible_[at] & mask;
-                               })) {
+                bool ok = true;
+                for (int at : PieceOrientationIterator(hints_[piece], o)) {
+                    if (!(possible_[at] & mask)) {
+                        ok = false;
+                    }
+                }
+                if (ok) {
                     ++valid_count;
-                    do_squares(size, piece_at + offset * -step, step,
-                               [&] (int at) {
-                                   count[at]++;
-                                   return true;
-                               });
+                    for (int at : PieceOrientationIterator(hints_[piece], o)) {
+                        count[at]++;
+                    }
                 }
             }
         }
@@ -617,18 +611,16 @@ private:
     }
 
     void update_not_possible(int update_at, Mask mask, int piece) {
-        int at = hints_[piece].first;
         int size = hints_[piece].second;
         int valid_o = valid_orientation_[piece];
         for (int o = 0; o < size * 2; ++o) {
             if (valid_o & (1 << o)) {
-                int offset = (size - 1) - (o >> 1);
-                int step = ((o & 1) ? W : 1);
-                bool no_intersect =
-                    do_squares(size, at + offset * -step, step,
-                               [&] (int at) {
-                                   return at != update_at;
-                               });
+                bool no_intersect = true;
+                for (int at : PieceOrientationIterator(hints_[piece], o)) {
+                    if (at == update_at) {
+                        no_intersect = false;
+                    }
+                }
                 if (no_intersect) {
                     valid_orientation_[piece] &= ~(1 << o);
                 }
@@ -637,26 +629,71 @@ private:
     }
 
     int init_valid_orientations(int piece) {
-        int at = hints_[piece].first;
         int size = hints_[piece].second;
         int ret = 0;
         for (int o = 0; o < size * 2; ++o) {
-            int offset = (size - 1) - (o >> 1);
-            int step = ((o & 1) ? W : 1);
-            bool fit =
-                do_squares(size, at + offset * -step, step,
-                           [&] (int test_at) {
-                               if (test_at != at && fixed_[test_at]) {
-                                   return false;
-                               }
-                               return true;
-                           });
-            if (fit) {
+            int count = 0;
+            for (int at : PieceOrientationIterator(hints_[piece], o)) {
+                if (!border_[at] &&
+                    (!fixed_[at] || fixed_[at] == piece_mask(piece))) {
+                    ++count;
+                }
+            }
+            bool fit2 = (count == size);
+            if (fit2) {
                 ret |= (1 << o);
             }
         }
         return ret;
     }
+
+    class PieceOrientationIterator {
+    public:
+        PieceOrientationIterator(Hint piece, int orientation) {
+            int at = piece.first;
+            int size = piece.second;
+            int offset = (size - 1) - (orientation >> 1);
+
+            step_ = ((orientation & 1) ? W : 1);
+            start_ = at - offset * step_;
+            end_ = start_ + size * step_;
+
+            if (start_ < 0 || end_ > W * H + step_) {
+                start_ = end_ = -1;
+            }
+        }
+
+        struct iterator {
+            iterator(int i, int step) : i_(i), step_(step) {
+            }
+
+            bool operator!=(const iterator& other) const {
+                return i_ != other.i_;
+            }
+
+            int operator*() {
+                return i_;
+            }
+
+            int operator++() {
+                i_ += step_;
+                return i_;
+            }
+
+            int i_, step_;
+        };
+
+        iterator begin() {
+            return iterator(start_, step_);
+        }
+
+        iterator end() {
+            return iterator(end_, step_);
+        }
+
+    private:
+        int start_, end_, step_;
+    };
 
     bool do_squares(int n, int start, int step,
                     std::function<bool(int)> fun) {
@@ -730,21 +767,14 @@ private:
             valid_orientation_[piece] = omask;
             {
                 int o = __builtin_ctzl(omask);
-                int at = hints_[piece].first;
-                int size = hints_[piece].second;
-                int offset = (size - 1) - (o >> 1);
-                int step = ((o & 1) ? W : 1);
-                do_squares(
-                    size, at + offset * -step, step,
-                    [&] (int at) {
-                        if (!fixed_[at]) {
-                            fixed_[at] = piece_mask(piece);
-                            update_not_possible(at,
-                                                piece_mask(piece),
-                                                piece);
-                        }
-                        return true;
-                    });
+                for (int at : PieceOrientationIterator(hints_[piece], o)) {
+                    if (!fixed_[at]) {
+                        fixed_[at] = piece_mask(piece);
+                        update_not_possible(at,
+                                            piece_mask(piece),
+                                            piece);
+                    }
+                }
             }
             return 1;
         }
@@ -784,26 +814,25 @@ private:
 
         // Iterate through all orientations of the piece. Look how many
         // match orientation A from the intro, how many B/C.
-        int at = hints_[piece].first;
         int size = hints_[piece].second;
         int valid_o = valid_orientation_[piece];
         for (int o = 0; o < size * 2; ++o) {
             if (valid_o & (1 << o)) {
-                int offset = (size - 1) - (o >> 1);
-                int step = ((o & 1) ? W : 1);
-                bool non_fixed = false;
                 // In this orientation either all squares are already
                 // covered by this piece, or can only be covered by
                 // this piece.
-                bool ok = do_squares(
-                    size, at + offset * -step, step,
-                    [&] (int at) {
-                        if (fixed_[at]) {
-                            return fixed_[at] == mask;
-                        }
+                bool ok = true;
+                bool non_fixed = false;
+                for (int at : PieceOrientationIterator(hints_[piece], o)) {
+                    if (fixed_[at]) {
+                        if (fixed_[at] != mask)
+                            ok = false;
+                    } else {
                         non_fixed = true;
-                        return possible_[at] ==  mask;
-                    });
+                        if (possible_[at] != mask)
+                            ok = false;
+                    }
+                }
                 if (ok && non_fixed) {
                     return 1 << o;
                 }
@@ -839,30 +868,25 @@ private:
 
         // Iterate through all orientations of the piece. Look how many
         // match orientation A from the intro, how many B/C.
-        int at = hints_[piece].first;
         int size = hints_[piece].second;
         int valid_o = valid_orientation_[piece];
         for (int o = 0; o < size * 2; ++o) {
             if (valid_o & (1 << o)) {
-                int offset = (size - 1) - (o >> 1);
-                int step = ((o & 1) ? W : 1);
                 DepMask covered;
+                bool ok = true;
                 bool overlaps_forced = false;
                 bool cant_overlap_with_other_pieces = true;
-                bool ok = do_squares(
-                    size, at + offset * -step, step,
-                    [&] (int at) {
-                        covered.set(at);
-                        if (!fixed_[at]) {
-                            if (forced_[at])
-                                overlaps_forced = true;
-                            if (possible_count(at) != 1)
-                                cant_overlap_with_other_pieces = false;
-                        } else if (fixed_[at] != piece_mask(piece)) {
-                            return false;
-                        }
-                        return true;
-                    });
+                for (int at : PieceOrientationIterator(hints_[piece], o)) {
+                    covered.set(at);
+                    if (!fixed_[at]) {
+                        if (forced_[at])
+                            overlaps_forced = true;
+                        if (possible_count(at) != 1)
+                            cant_overlap_with_other_pieces = false;
+                    } else if (fixed_[at] != piece_mask(piece)) {
+                        ok = false;
+                    }
+                }
                 if (!ok) {
                     continue;
                 }
@@ -943,7 +967,6 @@ private:
     DepMask find_dependent(int piece, int target,
                            bool wanted_overlap = true) {
         Mask mask = piece_mask(piece);
-        int at = hints_[piece].first;
         int size = hints_[piece].second;
         int valid_o = valid_orientation_[piece];
         bool ret_valid;
@@ -952,23 +975,19 @@ private:
 
         for (int o = 0; o < size * 2; ++o) {
             if (valid_o & (1 << o)) {
-                int offset = (size - 1) - (o >> 1);
-                int step = ((o & 1) ? W : 1);
                 bool overlaps_target = false;
-                bool ok = do_squares(size, at + offset * -step, step,
-                                     [&] (int at) {
-                                         if (at == target)
-                                             overlaps_target = true;
-                                         return (!fixed_[at] ||
-                                                 fixed_[at] == mask);
-                                     });
-                DepMask mask;
-                if (ok && overlaps_target == wanted_overlap) {
-                    do_squares(size, at + offset * -step, step,
-                               [&] (int at) {
-                                   mask[at] = true;
-                                   return true;
-                               });
+                bool ok = true;
+                for (int at : PieceOrientationIterator(hints_[piece], o)) {
+                    if (at == target)
+                        overlaps_target = true;
+                    if (fixed_[at] && fixed_[at] != mask)
+                        ok = false;
+                }
+                if (overlaps_target == wanted_overlap && ok) {
+                    DepMask mask;
+                    for (int at : PieceOrientationIterator(hints_[piece], o)) {
+                        mask[at] = true;
+                    }
                     ret &= mask;
                     ret_valid = true;
                 }
@@ -988,7 +1007,6 @@ private:
     void update_square() {
         for (int piece = 0; piece < N; ++piece) {
             int size = hints_[piece].second;
-            int at = hints_[piece].first;
             std::vector<int> covered;
             for (int at = 0; at < W * H; ++at) {
                 if (!forced_[at] || fixed_[at] ||
@@ -1017,13 +1035,12 @@ private:
                     int valid_o = valid_orientation_[piece];
                     for (int o = 0; o < size * 2; ++o) {
                         if (valid_o & (1 << o)) {
-                            int offset = (size - 1) - (o >> 1);
-                            int step = ((o & 1) ? W : 1);
-                            bool no_candidate =
-                                do_squares(size, at + offset * -step, step,
-                                           [&] (int at) {
-                                               return at != ai && at != aj;
-                                           });
+                            bool no_candidate = true;
+                            for (int at :
+                                 PieceOrientationIterator(hints_[piece], o)) {
+                                if (at == ai || at == aj)
+                                    no_candidate = false;
+                            }
                             if (no_candidate) {
                                 valid_orientation_[piece] &= ~(1 << o);
                             }
@@ -1124,22 +1141,20 @@ private:
                                  const DepMask& a,
                                  const DepMask& b) {
         Mask mask = piece_mask(piece);
-        int at = hints_[piece].first;
         int size = hints_[piece].second;
         int valid_o = valid_orientation_[piece];
 
         for (int o = 0; o < size * 2; ++o) {
             if (valid_o & (1 << o)) {
-                int offset = (size - 1) - (o >> 1);
-                int step = ((o & 1) ? W : 1);
                 bool a_hit = false, b_hit = false;
-                bool ok = do_squares(
-                    size, at + offset * -step, step,
-                    [&] (int at) {
-                        if (a[at]) a_hit = true;
-                        if (b[at]) b_hit = true;
-                        return (!fixed_[at] || fixed_[at] == mask);
-                    });
+                bool ok = true;
+                for (int at : PieceOrientationIterator(hints_[piece], o)) {
+                    if (a[at]) a_hit = true;
+                    if (b[at]) b_hit = true;
+                    if (fixed_[at] && fixed_[at] != mask) {
+                        ok = false;
+                    }
+                }
                 if (ok && a_hit && b_hit) {
                     valid_orientation_[piece] &= ~(1 << o);
                 }
