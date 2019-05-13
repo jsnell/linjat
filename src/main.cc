@@ -456,7 +456,38 @@ public:
             }
         }
 
+        validate();
+
         return true;
+    }
+
+    void validate() {
+        std::array<int, N> count { 0 };
+        for (int piece = 0; piece < N; ++piece) {
+            assert(orientation_count(piece) == 1);
+            for (int at : PieceOrientationIterator(
+                     hints_[piece],
+                     __builtin_ctzl(valid_orientation_[piece]))) {
+                if (fixed_[at]) {
+                    assert(fixed_[at] == piece_mask(piece));
+                } else {
+                    fixed_[at] = piece_mask(piece);
+                }
+            }
+        }
+
+        for (int at = 0; at < W * H; ++at) {
+            if (forced_[at]) {
+                assert(fixed_[at]);
+            }
+            if (fixed_[at]) {
+                count[mask_to_piece(fixed_[at])]++;
+            }
+        }
+
+        for (int piece = 0; piece < N; ++piece) {
+            assert(count[piece] == hints_[piece].second);
+        }
     }
 
     void mutate() {

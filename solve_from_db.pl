@@ -17,8 +17,9 @@ my $h = scalar @{$puzzle->{puzzle}};
 my $p = ("$str") =~ tr/0-9//;
 
 die if system "MAP_HEIGHT=$h MAP_WIDTH=$w PIECES=$p cmake . && make ";
+# print qq(bin/mklinjat --solve="$str" --solve_progress_file=foo);
 my $res = qx(bin/mklinjat --solve="$str" --solve_progress_file=foo);
-print $res;
+# print $res;
 my $json = decode_json $res;
 print $json->{classification}{'single-solution'}{depth};
     
