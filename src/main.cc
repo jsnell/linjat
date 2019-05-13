@@ -654,7 +654,7 @@ private:
             start_ = at - offset * step_;
             end_ = start_ + size * step_;
 
-            if (start_ < 0 || end_ > W * H + step_) {
+            if (start_ < 0 || end_ >= W * H + step_) {
                 start_ = end_ = -1;
             }
         }
