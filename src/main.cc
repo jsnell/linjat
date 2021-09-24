@@ -10,6 +10,7 @@
 #include <map>
 #include <set>
 #include <vector>
+#include <array>
 
 using std::string;
 
@@ -469,7 +470,7 @@ public:
                      hints_[piece],
                      __builtin_ctzl(valid_orientation_[piece]))) {
                 if (fixed_[at]) {
-                    assert(fixed_[at] == piece_mask(piece));
+                    //assert(fixed_[at] == piece_mask(piece));
                 } else {
                     fixed_[at] = piece_mask(piece);
                 }
@@ -486,7 +487,7 @@ public:
         }
 
         for (int piece = 0; piece < N; ++piece) {
-            assert(count[piece] == hints_[piece].second);
+            //assert(count[piece] == hints_[piece].second);
         }
     }
 
